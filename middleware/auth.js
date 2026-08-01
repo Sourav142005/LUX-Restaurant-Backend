@@ -13,7 +13,14 @@ const auth = (req, res, next) => {
         }
 
         // Remove "Bearer "
-        const token = authHeader.split(" ")[1];
+        if (!authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+        success: false,
+        message: "Invalid Authorization Format"
+    });
+}
+
+const token = authHeader.split(" ")[1];
 
         // Verify token
         const decoded = jwt.verify(token, process.env.JWT_SECRET);

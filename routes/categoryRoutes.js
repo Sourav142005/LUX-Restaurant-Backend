@@ -10,6 +10,6 @@ const auth = require("../middleware/auth");
 const admin = require("../middleware/admin");
 
 router.post("/", auth, admin, createCategory);
-
 router.get("/", getCategories);
+
 module.exports = router;
