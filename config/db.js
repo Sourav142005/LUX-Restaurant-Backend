@@ -3,8 +3,14 @@ const dns = require("node:dns");
 
 const connectDB = async () => {
     try {
-        // Temporary workaround for the local Node.js DNS issue
-        dns.setServers(["8.8.8.8", "8.8.4.4"]);
+        // Local Node.js Windows DNS resolution fallback
+        if (process.env.NODE_ENV !== "production") {
+            try {
+                dns.setServers(["8.8.8.8", "8.8.4.4"]);
+            } catch (dnsErr) {
+                // Ignore if platform disallows changing DNS
+            }
+        }
 
         const uri = process.env.MONGO_URI;
 

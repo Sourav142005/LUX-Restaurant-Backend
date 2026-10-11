@@ -44,69 +44,47 @@ const PORT = process.env.PORT || 5000;
 // CORS
 // ======================================================
 
-const allowedOrigins = [
+const defaultAllowedOrigins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "https://4c1c10xt-5173.inc1.devtunnels.ms",
     "https://lux-restaurant-frontend.vercel.app"
-
 ];
 
-app.use((req, res, next) => {
-    console.log(
-        `➡️ ${req.method} ${req.originalUrl} | Origin: ${req.headers.origin || "No Origin"}`
-    );
-    next();
-});
+const isOriginAllowed = (origin) => {
+    // Allow non-browser requests (Postman, server-to-server, health checks, etc.)
+    if (!origin) return true;
 
-app.use(
-    cors({
-        origin: function (origin, callback) {
-            // Allow requests with no origin
-            // (Postman, server-to-server requests, etc.)
-            if (!origin) {
-                return callback(null, true);
-            }
+    // Check direct matches
+    if (defaultAllowedOrigins.includes(origin)) return true;
 
-            if (allowedOrigins.includes(origin)) {
-                return callback(null, true);
-            }
+    // Check CLIENT_URL environment variable (supports comma-separated list)
+    if (process.env.CLIENT_URL) {
+        const clientUrls = process.env.CLIENT_URL.split(",").map(url => url.trim().replace(/\/$/, ""));
+        if (clientUrls.includes(origin.replace(/\/$/, ""))) return true;
+    }
 
-            console.log("❌ CORS blocked:", origin);
-
-            return callback(new Error("Not allowed by CORS"));
-        },
-
-        credentials: true,
-
-        methods: [
-            "GET",
-            "POST",
-            "PUT",
-            "PATCH",
-            "DELETE",
-            "OPTIONS"
-        ],
-
-        allowedHeaders: [
-            "Content-Type",
-            "Authorization"
-        ]
-    })
-);
-
-app.options(/.*/, cors({
-    origin: function (origin, callback) {
-        if (!origin) {
-            return callback(null, true);
+    // Allow all Vercel deployment preview and production domains (*.vercel.app)
+    try {
+        const hostname = new URL(origin).hostname;
+        if (hostname.endsWith(".vercel.app") || hostname === "vercel.app") {
+            return true;
         }
+    } catch (e) {
+        // Fallback if URL constructor throws
+    }
 
-        if (allowedOrigins.includes(origin)) {
+    return false;
+};
+
+const corsOptions = {
+    origin: function (origin, callback) {
+        if (isOriginAllowed(origin)) {
             return callback(null, true);
         }
 
         console.log("❌ CORS blocked:", origin);
-        return callback(new Error("Not allowed by CORS"));
+        return callback(new Error(`Not allowed by CORS: ${origin}`));
     },
 
     credentials: true,
@@ -124,7 +102,17 @@ app.options(/.*/, cors({
         "Content-Type",
         "Authorization"
     ]
-}));
+};
+
+app.use((req, res, next) => {
+    console.log(
+        `➡️ ${req.method} ${req.originalUrl} | Origin: ${req.headers.origin || "No Origin"}`
+    );
+    next();
+});
+
+app.use(cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
 // ======================================================
 // Body Parser
 // ======================================================
