@@ -1,12 +1,27 @@
+
 const OpenAI = require("openai");
 
-const client = new OpenAI({
-  apiKey: process.env.EXPLABS_API_KEY,
-  baseURL: "https://api.experientiallabs.ai/v1",
-});
+let client;
+
+function getClient() {
+  if (!process.env.EXPLABS_API_KEY) {
+    throw new Error("AI service is not configured");
+  }
+
+  if (!client) {
+    client = new OpenAI({
+      apiKey: process.env.EXPLABS_API_KEY,
+      baseURL: "https://api.experientiallabs.ai/v1",
+    });
+  }
+
+  return client;
+}
 
 async function askAstra(message) {
-  const response = await client.chat.completions.create({
+  const aiClient = getClient();
+
+  const response = await aiClient.chat.completions.create({
     model: "gpt-6-astra",
     messages: [
       {

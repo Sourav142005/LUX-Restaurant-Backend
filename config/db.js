@@ -1,14 +1,22 @@
 const mongoose = require("mongoose");
+const dns = require("node:dns");
 
 const connectDB = async () => {
     try {
-        const conn = await mongoose.connect(process.env.MONGO_URI);
+        // Temporary workaround for the local Node.js DNS issue
+        dns.setServers(["8.8.8.8", "8.8.4.4"]);
 
-        console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+        const uri = process.env.MONGO_URI;
+
+        if (!uri) {
+            throw new Error("MONGO_URI is missing from .env");
+        }
+
+        const conn = await mongoose.connect(uri);
+
+        console.log(`MongoDB Connected: ${conn.connection.host}`);
     } catch (error) {
-        console.log("❌ FULL ERROR:");
-        console.log(error);
-        process.exit(1);
+        console.error("MongoDB connection failed:", error.message);
     }
 };
 
