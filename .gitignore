@@ -1,12 +1,15 @@
+
 node_modules/
 .env
+.env.*
+!.env.example
 
 *.log
 npm-debug.log*
-
 coverage/
-
 uploads/
-
 .DS_Store
 Thumbs.db
+
+resetAdmin.local.js
+audit-report.json

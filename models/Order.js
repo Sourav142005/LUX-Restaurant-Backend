@@ -1,12 +1,25 @@
 const mongoose = require("mongoose");
 
+// ======================================================
+// Order Schema
+// ======================================================
+
 const orderSchema = new mongoose.Schema(
     {
+        // ==================================================
+        // User
+        // ==================================================
+
         user: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
-            required: true
+            required: true,
+            index: true
         },
+
+        // ==================================================
+        // Order Items
+        // ==================================================
 
         items: [
             {
@@ -22,53 +35,167 @@ const orderSchema = new mongoose.Schema(
                     min: 1
                 },
 
+                // Price at the time the order was created
                 price: {
                     type: Number,
-                    required: true
+                    required: true,
+                    min: 0
                 }
             }
         ],
 
+        // ==================================================
+        // Total Price
+        // ==================================================
+
         totalPrice: {
             type: Number,
-            required: true
+            required: true,
+            min: 0
         },
+
+        // ==================================================
+        // Order Status
+        // ==================================================
 
         orderStatus: {
             type: String,
+
             enum: [
+                "Scheduled",
                 "Pending",
                 "Preparing",
                 "Ready",
                 "Delivered",
                 "Cancelled"
             ],
-            default: "Pending"
+
+            default: "Pending",
+
+            index: true
         },
+
+        // ==================================================
+        // Payment Status
+        // ==================================================
 
         paymentStatus: {
             type: String,
+
             enum: [
                 "Pending",
                 "Paid",
-                "Failed"
+                "Failed",
+                "Refunded"
             ],
-            default: "Pending"
+
+            default: "Pending",
+
+            index: true
         },
+
+        // ==================================================
+        // Razorpay Payment Information
+        // ==================================================
+
+        razorpayOrderId: {
+            type: String,
+            default: null,
+            trim: true,
+            index: true
+        },
+
+        razorpayPaymentId: {
+            type: String,
+            default: null,
+            trim: true,
+            index: true
+        },
+
+        razorpaySignature: {
+            type: String,
+            default: null,
+            trim: true
+        },
+
+        // ==================================================
+        // Order Type
+        // ==================================================
 
         orderType: {
             type: String,
+
             enum: [
                 "Dine-In",
                 "Takeaway",
                 "Delivery"
             ],
-            default: "Dine-In"
-        }
+
+            default: "Dine-In",
+
+            required: true
+        },
+
+        // ==================================================
+        // Table
+        // ==================================================
+
+        table: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Table",
+            default: null
+        },
+
+        // ==================================================
+        // Table Closed / Customer Left
+        // ==================================================
+
+        tableClosed: {
+            type: Boolean,
+            default: false
+        },
+
+        // ==================================================
+        // Reservation
+        // ==================================================
+
+        reservation: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Reservation",
+            default: null
+        },
     },
+
     {
         timestamps: true
     }
 );
 
-module.exports = mongoose.model("Order", orderSchema);
+
+// ======================================================
+// Helpful Indexes
+// ======================================================
+
+orderSchema.index({
+    user: 1,
+    createdAt: -1
+});
+
+orderSchema.index({
+    orderStatus: 1,
+    createdAt: -1
+});
+
+orderSchema.index({
+    paymentStatus: 1,
+    createdAt: -1
+});
+
+
+// ======================================================
+// Export Model
+// ======================================================
+
+module.exports =
+    mongoose.models.Order ||
+    mongoose.model("Order", orderSchema);

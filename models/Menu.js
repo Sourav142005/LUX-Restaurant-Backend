@@ -30,6 +30,11 @@ const menuSchema = new mongoose.Schema(
             default: ""
         },
 
+        model3D: {
+            type: String,
+            default: ""
+        },
+
         isVeg: {
             type: Boolean,
             default: true
