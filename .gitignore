@@ -12,4 +12,6 @@ uploads/
 Thumbs.db
 
 resetAdmin.local.js
+seedAdmin.local.js
+*.local.js
 audit-report.json
