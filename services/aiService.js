@@ -293,7 +293,7 @@ function generateDeterministicReply(userMessage, dishes, context = {}) {
       .join(", ");
 
     return {
-      reply: `Confirmed! I have added ${itemListStr} (Total: ₹${total.toLocaleString("en-IN")}) to your cart. You can view your cart or continue browsing the menu!`,
+      reply: `Confirmed! I have added ${itemListStr} (Total: ₹${total.toLocaleString("en-IN")}) directly to your cart. Please review your cart whenever you are ready to place your order with our restaurant!`,
       action: "CONFIRM_CART_ADD",
       proposedItems: [],
       itemsToCart: validatedItems,
@@ -310,7 +310,7 @@ function generateDeterministicReply(userMessage, dishes, context = {}) {
 
   if (pendingOrder && isNegative) {
     return {
-      reply: "No problem! I have cancelled that request. Your cart remains unchanged. How else can I assist you with the menu today?",
+      reply: "No problem! I have cancelled that proposal. Your cart remains unchanged. How else can I assist you with dining today?",
       action: "CANCEL_CART_ADD",
       proposedItems: [],
       itemsToCart: [],
@@ -318,9 +318,9 @@ function generateDeterministicReply(userMessage, dishes, context = {}) {
     };
   }
 
-  // 3. CONVERSATIONAL ORDER REQUEST ("add 1 pizza and 2 cappuccinos")
+  // 3. CONVERSATIONAL ORDER REQUEST ("add 1 pizza and 2 cappuccinos", "make it 2 pizzas", "one pizza instead")
   const isOrderIntent =
-    /(?:\badd\b|\border\b|\bcart\b|\bbuy\b|\bwant to get\b|\bget me\b|\bhave\b|\bi'd like\b|\bi want\b|\bgive me\b|\bcan i get\b|\bcan i have\b)/i.test(
+    /(?:\badd\b|\border\b|\bcart\b|\bbuy\b|\bwant to get\b|\bget me\b|\bhave\b|\bi'd like\b|\bi want\b|\bgive me\b|\bcan i get\b|\bcan i have\b|\bmake it\b|\bmake that\b|\bchange(?:\s+it|\s+order)?\s+to\b|\bchange to\b|\bswitch(?:\s+to)?\b|\binstead\b)/i.test(
       text
     ) &&
     !/(?:\bwhat\b|\bhow much\b|\bhow long\b|\bprice\b|\btell me\b|\bsuggest\b|\brecommend\b|\bwhat is\b)/i.test(
@@ -335,17 +335,18 @@ function generateDeterministicReply(userMessage, dishes, context = {}) {
     // Split compound phrases
     const segments = text
       .replace(
-        /^.*?(?:add|order|get me|i want|i would like|i'd like|give me|can i get|can i have)\s+/i,
+        /^.*?(?:add|order|get me|i want|i would like|i'd like|give me|can i get|can i have|make it|make that|change(?:\s+it|\s+order)?\s+to|change to|switch(?:\s+to)?|instead)\s+/i,
         ""
       )
       .replace(/\s+(?:to|into|in)\s+(?:my\s+)?cart.*$/i, "")
+      .replace(/\s+instead(?:\s+of.*)?$/i, "")
       .split(/\s*(?:,\s*|\s+and\s+|\s*\+\s*)\s*/i);
 
     for (const segment of segments) {
       if (!segment.trim()) continue;
 
       let quantity = 1;
-      let dishQuery = segment.trim();
+      let dishQuery = segment.replace(/\s+instead(?:\s+of.*)?$/i, "").trim();
 
       const numMatch = dishQuery.match(
         /^(?:(\d+)|(a|an|one|two|three|four|five|six|seven|eight|nine|ten|single|double|couple))\s+(.+)$/i
@@ -754,7 +755,7 @@ function generateDeterministicReply(userMessage, dishes, context = {}) {
 
   // 11. GENERAL / GREETING FALLBACK
   return {
-    reply: `Welcome to **LUX AI**! I'm your dining concierge and hands-free voice assistant.\n\nHere are some things you can ask me:\n• *"What can I eat under ₹300?"*\n• *"Recommend vegetarian dishes"*\n• *"What goes well with our menu items?"*\n• *"What is the price of ${
+    reply: `Welcome to **LUX**! I'm **Luci**, your personal dining concierge and hands-free voice assistant.\n\nHere are some things you can ask me:\n• *"What can I eat under ₹300?"*\n• *"Recommend vegetarian dishes"*\n• *"What goes well with our menu items?"*\n• *"What is the price of ${
       dishes[0]?.name || "a dish"
     }?"*\n• *"Add one ${
       dishes[0]?.name || "dish"
@@ -844,16 +845,20 @@ async function askAstra(message, context = {}) {
       const allVeg = dishes.every((d) => d.isVeg);
 
       // System instruction with real live menu context
-      let systemPrompt = `You are LUX AI, the dining concierge and voice assistant for the luxury restaurant LUX.
+      let systemPrompt = `You are Luci (Luci by LUX), the personal dining concierge and hands-free voice assistant for the luxury restaurant LUX.
 Available live menu:
 ${menuPrompt}
 
 Rules:
-1. ONLY recommend or discuss dishes from the menu above. NEVER invent dishes, prices, ingredients, or IDs.
-2. ${allVeg ? "All items on our current menu are 100% vegetarian." : "Check each item's vegetarian flag from the menu list."}
-3. If guest asks about budget or pricing, calculate costs accurately using the exact prices above.
-4. Never claim to have charged a card, modified the cart directly, or completed a payment. Cart additions require guest confirmation.
-5. Keep your tone warm, elegant, concise, and helpful.`;
+1. ONLY recommend or discuss dishes from the menu above. NEVER invent dishes, prices, ingredients, allergen information, dietary certifications, or preparation times. If the menu lacks specific details, state honestly that our records do not specify it.
+2. For questions unrelated to food, dining, or restaurant reservations, politely decline and steer the conversation back toward dining at LUX.
+3. When guests ask for dish comparisons, compare flavors, preparation times, categories, and prices based strictly on the live menu.
+4. When guests ask about budget, pairing, drinks, or desserts, provide helpful recommendations grounded in the live menu.
+5. ${allVeg ? "All items on our current menu are 100% vegetarian." : "Check each item's vegetarian flag from the menu list."}
+6. If guest asks about budget or pricing, calculate costs accurately using the exact prices above.
+7. Never claim an order has been placed with the restaurant kitchen merely because items were added to the shopping cart. Remind guests that items are in their cart ready for review before checkout.
+8. Cart additions require explicit guest confirmation.
+9. Keep your tone warm, elegant, charming, concise, and helpful.`;
 
       // Pass context about detected cart actions
       if (
@@ -882,7 +887,7 @@ Rules:
           .map((i) => `${i.quantity}x ${i.name}`)
           .join(", ");
         systemPrompt += `\n\nNotice: The guest confirmed their order of: ${itemSummary}.
-Warmly confirm that these items have been added to their cart and they can review their cart or proceed to checkout.`;
+Warmly confirm that these items have been added to their cart, and that they can review their cart whenever they are ready to proceed with their order at the restaurant.`;
       } else if (structuredPass.action === "CANCEL_CART_ADD") {
         systemPrompt += `\n\nNotice: The guest cancelled their order proposal.
 Politely confirm that the request was cancelled and their cart was unchanged. Ask how else you can assist them.`;
