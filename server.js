@@ -47,6 +47,9 @@ const PORT = process.env.PORT || 5000;
 const defaultAllowedOrigins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
+    "http://10.47.73.115:5174",
     "https://4c1c10xt-5173.inc1.devtunnels.ms",
     "https://lux-restaurant-frontend.vercel.app"
 ];
