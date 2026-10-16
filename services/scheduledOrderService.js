@@ -1,74 +1,85 @@
-const Order = require("../models/Order");
-const Table = require("../models/Table");
-const Reservation = require("../models/Reservation");
+const OrderModel = require("../models/Order");
+const TableModel = require("../models/Table");
+const ReservationModel = require("../models/Reservation");
 
 // ======================================================
-// Helper: Get Current Local Date
+// IST Timezone Helpers (Asia/Kolkata)
 // ======================================================
 
-const getCurrentDateString = () => {
-    const now = new Date();
-
-    return `${now.getFullYear()}-${String(
-        now.getMonth() + 1
-    ).padStart(2, "0")}-${String(
-        now.getDate()
-    ).padStart(2, "0")}`;
+const getISTDateString = (date = new Date()) => {
+    return new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Kolkata",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+    }).format(date);
 };
 
-// ======================================================
-// Helper: Get Current Local Time
-// ======================================================
-
-const getCurrentTimeString = () => {
-    const now = new Date();
-
-    return `${String(
-        now.getHours()
-    ).padStart(2, "0")}:${String(
-        now.getMinutes()
-    ).padStart(2, "0")}`;
+const getISTTimeString = (date = new Date()) => {
+    return new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Asia/Kolkata",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false
+    }).format(date);
 };
-
-// ======================================================
-// Helper: Get Reservation Date
-//
-// Reservation dates are stored as Date objects.
-// We use UTC date components because the frontend
-// also interprets reservationDate using UTC.
-// ======================================================
 
 const getReservationDateString = (reservationDate) => {
+    if (!reservationDate) return "";
+
+    if (
+        typeof reservationDate === "string" &&
+        /^\d{4}-\d{2}-\d{2}$/.test(reservationDate)
+    ) {
+        return reservationDate;
+    }
+
     const date = new Date(reservationDate);
 
-    return `${date.getUTCFullYear()}-${String(
-        date.getUTCMonth() + 1
-    ).padStart(2, "0")}-${String(
-        date.getUTCDate()
-    ).padStart(2, "0")}`;
+    if (isNaN(date.getTime())) return "";
+
+    return new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Kolkata",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+    }).format(date);
 };
+
+// ======================================================
+// In-process Concurrency Lock
+// ======================================================
+
+let isProcessing = false;
 
 // ======================================================
 // Process Scheduled Orders
 // ======================================================
 
-const processScheduledOrders = async () => {
-    try {
-        // ==================================================
-        // Current Date & Time
-        // ==================================================
+const processScheduledOrders = async (options = {}) => {
+    if (isProcessing) {
+        console.log("⏳ Scheduled order processing is already in progress, skipping.");
+        return 0;
+    }
 
-        const currentDate = getCurrentDateString();
-        const currentTime = getCurrentTimeString();
+    isProcessing = true;
+
+    try {
+        const {
+            nowDate = new Date(),
+            Order = OrderModel,
+            Table = TableModel,
+            Reservation = ReservationModel
+        } = options;
+
+        const currentDate = getISTDateString(nowDate);
+        const currentTime = getISTTimeString(nowDate);
 
         console.log(
-            `🕐 Scheduled order check: ${currentDate} ${currentTime}`
+            `🕐 Scheduled order check (IST): ${currentDate} ${currentTime}`
         );
 
-        // ==================================================
-        // Find Scheduled Orders
-        // ==================================================
-
+        // Find Scheduled orders with an associated reservation
         const scheduledOrders = await Order.find({
             orderStatus: "Scheduled",
             reservation: { $ne: null }
@@ -80,166 +91,206 @@ const processScheduledOrders = async () => {
 
         let activatedCount = 0;
 
-        // ==================================================
-        // Process Each Scheduled Order
-        // ==================================================
-
         for (const order of scheduledOrders) {
             try {
-                // ==========================================
-                // Find Reservation
-                // ==========================================
+                // Must still be Scheduled
+                if (order.orderStatus !== "Scheduled") {
+                    console.log(`⏭️ Order ${order._id} is no longer Scheduled (${order.orderStatus})`);
+                    continue;
+                }
 
-                const reservation =
-                    await Reservation.findById(
-                        order.reservation
-                    );
+                // Payment Policy Validation
+                const policy = order.paymentPolicy || "PayNow";
+
+                if (policy === "PayAfterDining") {
+                    // PayAfterDining is only valid for Dine-In
+                    if (order.orderType !== "Dine-In") {
+                        console.log(
+                            `⚠️ Order ${order._id} has PayAfterDining policy but is not Dine-In (${order.orderType}). Skipping.`
+                        );
+                        continue;
+                    }
+
+                    // Must not be failed or refunded
+                    if (["Failed", "Refunded"].includes(order.paymentStatus)) {
+                        console.log(
+                            `⚠️ Order ${order._id} has paymentStatus ${order.paymentStatus}. Skipping.`
+                        );
+                        continue;
+                    }
+                } else {
+                    // PayNow orders MUST have paymentStatus === "Paid"
+                    if (order.paymentStatus !== "Paid") {
+                        console.log(
+                            `⏳ Order ${order._id} is PayNow with paymentStatus ${order.paymentStatus}. Awaiting payment.`
+                        );
+                        continue;
+                    }
+                }
+
+                // Reservation lookup
+                const reservation = await Reservation.findById(order.reservation);
 
                 if (!reservation) {
-                    console.log(
-                        `⚠️ Reservation not found for order ${order._id}`
-                    );
-
+                    console.log(`⚠️ Reservation not found for order ${order._id}`);
                     continue;
                 }
 
-                // ==========================================
-                // Reservation Must Be Confirmed
-                // ==========================================
-
-                if (
-                    reservation.status !== "Confirmed"
-                ) {
-                    console.log(
-                        `⏭️ Reservation ${reservation._id} is not confirmed`
-                    );
-
+                // Reservation must be Confirmed
+                if (reservation.status !== "Confirmed") {
+                    console.log(`⏭️ Reservation ${reservation._id} is not confirmed (${reservation.status})`);
                     continue;
                 }
 
-                // ==========================================
-                // Reservation Must Have Table
-                // ==========================================
-
+                // Must have table assigned
                 if (!reservation.table) {
-                    console.log(
-                        `⚠️ No table assigned to reservation ${reservation._id}`
-                    );
-
+                    console.log(`⚠️ No table assigned to reservation ${reservation._id}`);
                     continue;
                 }
 
-                // ==========================================
-                // Reservation Date
-                // ==========================================
+                // Date comparison (IST)
+                const reservationDateString = getReservationDateString(reservation.reservationDate);
 
-                const reservationDateString =
-                    getReservationDateString(
-                        reservation.reservationDate
-                    );
-
-                // ==========================================
-                // Compare Reservation Date
-                // ==========================================
-
-                // Reservation is from a previous day
-                if (
-                    reservationDateString <
-                    currentDate
-                ) {
-                    console.log(
-                        `⏭️ Reservation ${reservation._id} is from the past`
-                    );
-
+                if (reservationDateString < currentDate) {
+                    console.log(`⏭️ Reservation ${reservation._id} is from the past (${reservationDateString} < ${currentDate})`);
                     continue;
                 }
 
-                // Reservation is on a future day
-                if (
-                    reservationDateString >
-                    currentDate
-                ) {
-                    console.log(
-                        `⏳ Reservation ${reservation._id} is upcoming`
-                    );
-
+                if (reservationDateString > currentDate) {
+                    console.log(`⏳ Reservation ${reservation._id} is upcoming (${reservationDateString} > ${currentDate})`);
                     continue;
                 }
 
-                // ==========================================
-                // Reservation is TODAY
-                // ==========================================
-
-                // Check whether current time is inside
-                // reservation start/end time.
+                // Time window check (IST)
                 const isActive =
-                    currentTime >=
-                        reservation.startTime &&
-                    currentTime <
-                        reservation.endTime;
+                    currentTime >= reservation.startTime &&
+                    currentTime < reservation.endTime;
 
                 if (!isActive) {
                     console.log(
-                        `⏳ Reservation ${reservation._id} is not active yet`
+                        `⏳ Reservation ${reservation._id} is not active yet (Window: ${reservation.startTime}-${reservation.endTime}, Now: ${currentTime})`
                     );
-
                     continue;
                 }
 
-                // ==========================================
-                // Find Table
-                // ==========================================
-
-                const table =
-                    await Table.findById(
-                        reservation.table
-                    );
+                // Table lookup
+                const table = await Table.findById(reservation.table);
 
                 if (!table) {
-                    console.log(
-                        `⚠️ Table not found for reservation ${reservation._id}`
-                    );
-
+                    console.log(`⚠️ Table not found for reservation ${reservation._id}`);
                     continue;
                 }
 
-                // ==========================================
-                // Check Table Status
-                // ==========================================
-
-                if (
-                    table.status !== "Available" &&
-                    table.status !== "Reserved"
-                ) {
-                    console.log(
-                        `⚠️ Table ${table.tableNumber} is currently ${table.status}`
-                    );
-
+                // Table status validity
+                if (!["Available", "Reserved", "Occupied"].includes(table.status)) {
+                    console.log(`⚠️ Table ${table.tableNumber} has unsupported status: ${table.status}`);
                     continue;
                 }
 
-                // ==========================================
-                // Activate Order
-                // ==========================================
+                // If table is Occupied, check for conflicting reservation
+                if (table.status === "Occupied") {
+                    const conflictingReservation = await Reservation.findOne({
+                        _id: { $ne: reservation._id },
+                        table: table._id,
+                        status: "Confirmed",
+                        reservationDate: reservation.reservationDate,
+                        startTime: { $lte: currentTime },
+                        endTime: { $gt: currentTime }
+                    });
 
-                order.orderStatus = "Pending";
-                order.table = table._id;
+                    if (conflictingReservation) {
+                        console.log(
+                            `⚠️ Table ${table.tableNumber} is occupied by conflicting reservation ${conflictingReservation._id}`
+                        );
+                        continue;
+                    }
+                }
 
-                await order.save();
+                // Atomic transition from Scheduled to Pending
+                const updatedOrder = await Order.findOneAndUpdate(
+                    {
+                        _id: order._id,
+                        orderStatus: "Scheduled"
+                    },
+                    {
+                        $set: {
+                            orderStatus: "Pending",
+                            table: table._id
+                        }
+                    },
+                    {
+                        new: true
+                    }
+                );
 
-                // ==========================================
-                // Occupy Table
-                // ==========================================
+                if (!updatedOrder) {
+                    console.log(
+                        `⏭️ Order ${order._id} was already activated or state changed concurrently`
+                    );
+                    continue;
+                }
 
-                table.status = "Occupied";
+                // Update table status with atomic conditional update and rollback protection
+                try {
+                    const updatedTable = await Table.findOneAndUpdate(
+                        {
+                            _id: table._id,
+                            status: { $in: ["Available", "Reserved", "Occupied"] }
+                        },
+                        {
+                            $set: {
+                                status: "Occupied"
+                            }
+                        },
+                        {
+                            new: true
+                        }
+                    );
 
-                await table.save();
+                    if (!updatedTable) {
+                        throw new Error(
+                            `Table ${table._id} is no longer in a valid state to occupy`
+                        );
+                    }
+                } catch (tableError) {
+                    console.error(
+                        `❌ Failed to update table ${table._id} for order ${order._id}, rolling back order status:`,
+                        tableError
+                    );
+
+                    try {
+                        const rolledBackOrder = await Order.findOneAndUpdate(
+                            {
+                                _id: order._id,
+                                orderStatus: "Pending"
+                            },
+                            {
+                                $set: {
+                                    orderStatus: "Scheduled",
+                                    table: null
+                                }
+                            }
+                        );
+
+                        if (rolledBackOrder) {
+                            console.log(`🔄 Successfully rolled back order ${order._id} to Scheduled`);
+                        } else {
+                            console.log(
+                                `⚠️ Order ${order._id} status was already updated concurrently; rollback skipped`
+                            );
+                        }
+                    } catch (rollbackError) {
+                        console.error(
+                            `❌ CRITICAL: Failed to rollback order ${order._id} status:`,
+                            rollbackError
+                        );
+                    }
+
+                    continue;
+                }
 
                 activatedCount++;
-
-                console.log(
-                    `✅ Scheduled Order ${order._id} activated`
-                );
+                console.log(`✅ Scheduled Order ${order._id} activated`);
 
             } catch (orderError) {
                 console.error(
@@ -249,10 +300,6 @@ const processScheduledOrders = async () => {
             }
         }
 
-        // ==================================================
-        // Complete
-        // ==================================================
-
         console.log(
             `✅ Scheduled order check complete. Activated: ${activatedCount}`
         );
@@ -260,19 +307,16 @@ const processScheduledOrders = async () => {
         return activatedCount;
 
     } catch (error) {
-        console.error(
-            "❌ Scheduled Order Processing Error:",
-            error
-        );
-
+        console.error("❌ Scheduled Order Processing Error:", error);
         return 0;
+    } finally {
+        isProcessing = false;
     }
 };
 
-// ======================================================
-// Export
-// ======================================================
-
 module.exports = {
-    processScheduledOrders
+    processScheduledOrders,
+    getISTDateString,
+    getISTTimeString,
+    getReservationDateString
 };

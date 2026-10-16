@@ -55,7 +55,8 @@ const createOrder = async (
             items,
             orderType,
             reservation,
-            table
+            table,
+            paymentPolicy
         } = req.body;
 
 
@@ -200,6 +201,50 @@ const createOrder = async (
                     "Invalid order type"
 
             });
+
+        }
+
+
+        // ==================================================
+        // Validate Payment Policy
+        // ==================================================
+
+        let validatedPaymentPolicy = "PayNow";
+
+        if (paymentPolicy !== undefined && paymentPolicy !== null) {
+
+            if (!["PayNow", "PayAfterDining"].includes(paymentPolicy)) {
+
+                return res.status(400).json({
+
+                    success: false,
+
+                    message:
+                        "Invalid payment policy"
+
+                });
+
+            }
+
+            if (paymentPolicy === "PayAfterDining" && orderType !== "Dine-In") {
+
+                return res.status(400).json({
+
+                    success: false,
+
+                    message:
+                        "PayAfterDining is only allowed for Dine-In orders"
+
+                });
+
+            }
+
+            validatedPaymentPolicy = paymentPolicy;
+
+        } else if (orderType === "Dine-In" && !reservation) {
+
+            // Walk-in dine-in orders default to PayAfterDining
+            validatedPaymentPolicy = "PayAfterDining";
 
         }
 
@@ -517,6 +562,9 @@ const createOrder = async (
                     "Pending",
 
                 orderType,
+
+                paymentPolicy:
+                    validatedPaymentPolicy,
 
                 table:
                     selectedTable

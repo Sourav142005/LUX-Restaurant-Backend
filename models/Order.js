@@ -95,6 +95,23 @@ const orderSchema = new mongoose.Schema(
         },
 
         // ==================================================
+        // Payment Policy
+        // ==================================================
+
+        paymentPolicy: {
+            type: String,
+
+            enum: [
+                "PayNow",
+                "PayAfterDining"
+            ],
+
+            default: "PayNow",
+
+            index: true
+        },
+
+        // ==================================================
         // Razorpay Payment Information
         // ==================================================
 
@@ -188,6 +205,11 @@ orderSchema.index({
 
 orderSchema.index({
     paymentStatus: 1,
+    createdAt: -1
+});
+
+orderSchema.index({
+    paymentPolicy: 1,
     createdAt: -1
 });
 
