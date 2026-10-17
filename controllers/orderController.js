@@ -1381,7 +1381,7 @@ const closeTable = async (req, res) => {
         // ==================================================
 
         if (
-            order.paymentStatus !== "Paid"
+            !["Paid", "PartiallyRefunded"].includes(order.paymentStatus)
         ) {
 
             return res.status(400).json({
@@ -1628,340 +1628,64 @@ const cancelOrder = async (
 
     try {
 
-        // ==================================================
-        // Find Order
-        // ==================================================
-
         const order =
             await Order.findById(
                 req.params.id
             );
 
-
         if (!order) {
-
             return res.status(404).json({
-
                 success: false,
-
-                message:
-                    "Order not found"
-
+                message: "Order not found"
             });
-
         }
 
-
-        // ==================================================
         // Ownership
-        // ==================================================
-
         if (
-            order.user.toString() !==
-            req.user.id &&
-
-            req.user.role !==
-            "admin"
+            order.user.toString() !== req.user.id &&
+            req.user.role !== "admin"
         ) {
-
             return res.status(403).json({
-
                 success: false,
-
-                message:
-                    "Access denied"
-
+                message: "Access denied"
             });
-
         }
 
+        const { cancelOrderAndRefund } = require("../services/orderCancellationService");
+        const result = await cancelOrderAndRefund(order, "Customer cancelled order");
 
-        // ==================================================
-        // Scheduled / Pending Can Cancel
-        // ==================================================
-
-        if (
-            ![
-                "Scheduled",
-                "Pending"
-            ].includes(
-                order.orderStatus
-            )
-        ) {
-
-            return res.status(400).json({
-
+        if (result.reconciliationRequired || result.uncertain) {
+            return res.status(502).json({
                 success: false,
-
-                message:
-                    "Only scheduled or pending orders can be cancelled"
-
+                reconciliationRequired: true,
+                message: result.message,
+                order: result.order
             });
-
         }
 
-
-        // ==================================================
-        // PAID ORDER
-        // ==================================================
-
+        // Release Walk-In Table ONLY after confirmed cancellation and when not uncertain
         if (
-            order.paymentStatus ===
-            "Paid"
+            result.order?.orderStatus === "Cancelled" &&
+            !result.reconciliationRequired &&
+            !result.uncertain &&
+            order.table &&
+            !order.reservation
         ) {
-
-            // ----------------------------------------------
-            // Razorpay Payment ID Required
-            // ----------------------------------------------
-
-            if (
-                !order.razorpayPaymentId
-            ) {
-
-                console.error(
-                    "❌ Razorpay Payment ID missing for refund"
-                );
-
-
-                return res.status(400).json({
-
-                    success: false,
-
-                    message:
-                        "Payment was successful, but the Razorpay payment ID is missing. Refund cannot be processed automatically."
-
-                });
-
-            }
-
-
-            try {
-
-                // ------------------------------------------
-                // Create Razorpay Refund
-                // ------------------------------------------
-
-                const refund =
-                    await razorpay.payments.refund(
-
-                        order.razorpayPaymentId,
-
-                        {
-
-                            amount:
-                                Math.round(
-                                    Number(
-                                        order.totalPrice
-                                    ) * 100
-                                ),
-
-                            notes: {
-
-                                orderId:
-                                    order._id.toString(),
-
-                                reason:
-                                    "Customer cancelled order"
-
-                            }
-
-                        }
-
-                    );
-
-
-                console.log(
-                    "✅ Refund created:",
-                    refund.id
-                );
-
-
-                // ------------------------------------------
-                // Update Order
-                // ------------------------------------------
-
-                order.orderStatus =
-                    "Cancelled";
-
-
-                order.paymentStatus =
-                    "Refunded";
-
-
-                await order.save();
-
-
-                // ------------------------------------------
-                // Release Walk-In Table
-                // ------------------------------------------
-
-                if (
-                    order.table &&
-                    !order.reservation
-                ) {
-
-                    await Table.findByIdAndUpdate(
-                        order.table,
-                        {
-                            status:
-                                "Available"
-                        }
-                    );
-
+            await Table.findByIdAndUpdate(
+                order.table,
+                {
+                    status: "Available"
                 }
-
-
-                return res.status(200).json({
-
-                    success: true,
-
-                    message:
-                        "Order cancelled successfully and refund initiated",
-
-                    order
-
-                });
-
-
-            } catch (refundError) {
-
-                console.error(
-                    "❌ Razorpay Refund Error:",
-                    refundError
-                );
-
-
-                return res.status(500).json({
-
-                    success: false,
-
-                    message:
-                        "Order cancellation failed because the refund could not be processed",
-
-                    error:
-                        refundError.error?.description ||
-                        refundError.message
-
-                });
-
-            }
-
+            );
         }
 
-
-        // ==================================================
-        // UNPAID ORDER
-        // ==================================================
-
-        if (
-            order.paymentStatus ===
-            "Pending"
-        ) {
-
-            order.orderStatus =
-                "Cancelled";
-
-
-            await order.save();
-
-
-            // ------------------------------------------
-            // Release Walk-In Table
-            // ------------------------------------------
-
-            if (
-                order.table &&
-                !order.reservation
-            ) {
-
-                await Table.findByIdAndUpdate(
-                    order.table,
-                    {
-                        status:
-                            "Available"
-                    }
-                );
-
-            }
-
-
-            return res.status(200).json({
-
-                success: true,
-
-                message:
-                    "Order cancelled successfully",
-
-                order
-
-            });
-
-        }
-
-
-        // ==================================================
-        // FAILED PAYMENT
-        // ==================================================
-
-        if (
-            order.paymentStatus ===
-            "Failed"
-        ) {
-
-            order.orderStatus =
-                "Cancelled";
-
-
-            await order.save();
-
-
-            // ------------------------------------------
-            // Release Walk-In Table
-            // ------------------------------------------
-
-            if (
-                order.table &&
-                !order.reservation
-            ) {
-
-                await Table.findByIdAndUpdate(
-                    order.table,
-                    {
-                        status:
-                            "Available"
-                    }
-                );
-
-            }
-
-
-            return res.status(200).json({
-
-                success: true,
-
-                message:
-                    "Order cancelled successfully",
-
-                order
-
-            });
-
-        }
-
-
-        // ==================================================
-        // UNKNOWN PAYMENT STATUS
-        // ==================================================
-
-        return res.status(400).json({
-
-            success: false,
-
-            message:
-                `Order cannot be cancelled with payment status: ${order.paymentStatus}`
-
+        return res.status(200).json({
+            success: true,
+            message: result.message,
+            order: result.order,
+            refunded: result.refunded,
+            refundId: result.refundId
         });
-
 
     } catch (error) {
 
@@ -1970,14 +1694,11 @@ const cancelOrder = async (
             error
         );
 
-
-        return res.status(500).json({
-
+        return res.status(error.statusCode || 500).json({
             success: false,
-
-            message:
-                error.message
-
+            message: error.message || "Failed to cancel order",
+            error: error.message,
+            ...(error.reconciliationRequired ? { reconciliationRequired: true } : {})
         });
 
     }
@@ -1996,9 +1717,24 @@ const getAllOrders = async (
 ) => {
 
     try {
+        const queryFilter = {};
+
+        if (req.query?.reconciliationRequired !== undefined) {
+            queryFilter.reconciliationRequired =
+                req.query.reconciliationRequired === "true" ||
+                req.query.reconciliationRequired === true;
+        }
+
+        if (req.query?.paymentStatus) {
+            queryFilter.paymentStatus = req.query.paymentStatus;
+        }
+
+        if (req.query?.orderStatus) {
+            queryFilter.orderStatus = req.query.orderStatus;
+        }
 
         const orders =
-            await Order.find()
+            await Order.find(queryFilter)
 
                 .populate(
                     "user",
@@ -2176,9 +1912,15 @@ const createPaymentOrder = async (
         // Already Paid
         // ==================================================
 
+        if (order.orderStatus === "Cancelled") {
+            return res.status(400).json({
+                success: false,
+                message: "Cannot initiate payment: Order is cancelled"
+            });
+        }
+
         if (
-            order.paymentStatus ===
-            "Paid"
+            ["Paid", "PartiallyRefunded", "Refunded", "RefundPending"].includes(order.paymentStatus)
         ) {
 
             return res.status(400).json({
@@ -2186,7 +1928,7 @@ const createPaymentOrder = async (
                 success: false,
 
                 message:
-                    "Order is already paid"
+                    `Cannot initiate payment: Order payment status is ${order.paymentStatus}`
 
             });
 
@@ -2473,6 +2215,56 @@ const verifyPayment = async (
 
         }
 
+        if (
+            order.paymentStatus ===
+            "PartiallyRefunded"
+        ) {
+
+            return res.status(200).json({
+
+                success: true,
+
+                message:
+                    "Payment already verified (order partially refunded)",
+
+                order
+
+            });
+
+        }
+
+        if (
+            order.paymentStatus ===
+            "Refunded"
+        ) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Order has already been refunded"
+
+            });
+
+        }
+
+        if (
+            order.paymentStatus ===
+            "RefundPending"
+        ) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Order refund is pending"
+
+            });
+
+        }
+
 
         // ==================================================
         // Check Razorpay Order ID
@@ -2535,10 +2327,12 @@ const verifyPayment = async (
             receivedBuffer.length
         ) {
 
-            order.paymentStatus =
-                "Failed";
+            if (!["Paid", "PartiallyRefunded", "Refunded", "RefundPending"].includes(order.paymentStatus)) {
+                order.paymentStatus =
+                    "Failed";
 
-            await order.save();
+                await order.save();
+            }
 
 
             return res.status(400).json({
@@ -2566,10 +2360,12 @@ const verifyPayment = async (
 
         if (!isSignatureValid) {
 
-            order.paymentStatus =
-                "Failed";
+            if (!["Paid", "PartiallyRefunded", "Refunded", "RefundPending"].includes(order.paymentStatus)) {
+                order.paymentStatus =
+                    "Failed";
 
-            await order.save();
+                await order.save();
+            }
 
 
             return res.status(400).json({
@@ -2588,8 +2384,18 @@ const verifyPayment = async (
         // PAYMENT VERIFIED
         // ==================================================
 
-        order.paymentStatus =
-            "Paid";
+        const isCancelled = order.orderStatus === "Cancelled";
+        if (isCancelled) {
+            order.reconciliationRequired = true;
+            console.warn(
+                `🚨 ALERT: Payment ${razorpay_payment_id} verified for CANCELLED order ${order._id}. Marked reconciliationRequired=true.`
+            );
+        }
+
+        if (!["Paid", "PartiallyRefunded", "Refunded", "RefundPending"].includes(order.paymentStatus)) {
+            order.paymentStatus =
+                "Paid";
+        }
 
 
         order.razorpayPaymentId =
@@ -2601,6 +2407,16 @@ const verifyPayment = async (
 
 
         await order.save();
+
+
+        if (isCancelled) {
+            return res.status(200).json({
+                success: true,
+                message: "Payment verified for cancelled order; flagged for manual reconciliation",
+                reconciliationRequired: true,
+                order
+            });
+        }
 
 
         return res.status(200).json({

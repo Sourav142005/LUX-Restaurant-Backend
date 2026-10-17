@@ -85,6 +85,8 @@ const orderSchema = new mongoose.Schema(
             enum: [
                 "Pending",
                 "Paid",
+                "PartiallyRefunded",
+                "RefundPending",
                 "Failed",
                 "Refunded"
             ],
@@ -133,6 +135,58 @@ const orderSchema = new mongoose.Schema(
             type: String,
             default: null,
             trim: true
+        },
+
+        // ==================================================
+        // Razorpay Refund ID (Latest)
+        // ==================================================
+
+        refundId: {
+            type: String,
+            default: null,
+            trim: true
+        },
+
+        // ==================================================
+        // Refund Ledger (Multiple Partial Refunds)
+        // ==================================================
+
+        refunds: [
+            {
+                refundId: { type: String, required: true },
+                amount: { type: Number, required: true },
+                status: { type: String, default: "processed" },
+                createdAt: { type: Date, default: Date.now }
+            }
+        ],
+
+        // ==================================================
+        // Cumulative Amount Refunded (in Rupees)
+        // ==================================================
+
+        amountRefunded: {
+            type: Number,
+            default: 0,
+            min: 0
+        },
+
+        // ==================================================
+        // Reconciliation Required (e.g. captured after cancellation)
+        // ==================================================
+
+        reconciliationRequired: {
+            type: Boolean,
+            default: false,
+            index: true
+        },
+
+        // ==================================================
+        // Processed Webhook Events (Deduplication)
+        // ==================================================
+
+        processedWebhookEvents: {
+            type: [String],
+            default: []
         },
 
         // ==================================================

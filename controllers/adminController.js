@@ -67,7 +67,15 @@ const getDashboard = async (req, res) => {
 
                 {
                     $match: {
-                        paymentStatus: "Paid"
+                        paymentStatus: {
+                            $in: ["Paid", "PartiallyRefunded"]
+                        },
+                        orderStatus: {
+                            $ne: "Cancelled"
+                        },
+                        reconciliationRequired: {
+                            $ne: true
+                        }
                     }
                 },
 
@@ -76,7 +84,12 @@ const getDashboard = async (req, res) => {
                         _id: null,
 
                         totalRevenue: {
-                            $sum: "$totalPrice"
+                            $sum: {
+                                $subtract: [
+                                    "$totalPrice",
+                                    { $ifNull: ["$amountRefunded", 0] }
+                                ]
+                            }
                         }
                     }
                 }
@@ -122,8 +135,17 @@ const getDashboard = async (req, res) => {
                 {
                     $match: {
 
-                        paymentStatus:
-                            "Paid",
+                        paymentStatus: {
+                            $in: ["Paid", "PartiallyRefunded"]
+                        },
+
+                        orderStatus: {
+                            $ne: "Cancelled"
+                        },
+
+                        reconciliationRequired: {
+                            $ne: true
+                        },
 
                         createdAt: {
 
@@ -144,8 +166,12 @@ const getDashboard = async (req, res) => {
                         _id: null,
 
                         revenue: {
-                            $sum:
-                                "$totalPrice"
+                            $sum: {
+                                $subtract: [
+                                    "$totalPrice",
+                                    { $ifNull: ["$amountRefunded", 0] }
+                                ]
+                            }
                         }
 
                     }
@@ -195,8 +221,17 @@ const getDashboard = async (req, res) => {
                 {
                     $match: {
 
-                        paymentStatus:
-                            "Paid",
+                        paymentStatus: {
+                            $in: ["Paid", "PartiallyRefunded"]
+                        },
+
+                        orderStatus: {
+                            $ne: "Cancelled"
+                        },
+
+                        reconciliationRequired: {
+                            $ne: true
+                        },
 
                         createdAt: {
 
@@ -217,8 +252,12 @@ const getDashboard = async (req, res) => {
                         _id: null,
 
                         revenue: {
-                            $sum:
-                                "$totalPrice"
+                            $sum: {
+                                $subtract: [
+                                    "$totalPrice",
+                                    { $ifNull: ["$amountRefunded", 0] }
+                                ]
+                            }
                         }
 
                     }
@@ -346,8 +385,17 @@ const getDashboard = async (req, res) => {
                 {
                     $match: {
 
-                        paymentStatus:
-                            "Paid"
+                        paymentStatus: {
+                            $in: ["Paid", "PartiallyRefunded"]
+                        },
+
+                        orderStatus: {
+                            $ne: "Cancelled"
+                        },
+
+                        reconciliationRequired: {
+                            $ne: true
+                        }
 
                     }
                 },
@@ -370,10 +418,12 @@ const getDashboard = async (req, res) => {
                         },
 
                         revenue: {
-
-                            $sum:
-                                "$totalPrice"
-
+                            $sum: {
+                                $subtract: [
+                                    "$totalPrice",
+                                    { $ifNull: ["$amountRefunded", 0] }
+                                ]
+                            }
                         }
 
                     }
@@ -516,8 +566,17 @@ const getDashboard = async (req, res) => {
                 {
                     $match: {
 
-                        paymentStatus:
-                            "Paid",
+                        paymentStatus: {
+                            $in: ["Paid", "PartiallyRefunded"]
+                        },
+
+                        orderStatus: {
+                            $ne: "Cancelled"
+                        },
+
+                        reconciliationRequired: {
+                            $ne: true
+                        },
 
                         createdAt: {
 
@@ -547,10 +606,12 @@ const getDashboard = async (req, res) => {
                         },
 
                         revenue: {
-
-                            $sum:
-                                "$totalPrice"
-
+                            $sum: {
+                                $subtract: [
+                                    "$totalPrice",
+                                    { $ifNull: ["$amountRefunded", 0] }
+                                ]
+                            }
                         },
 
                         orders: {
@@ -629,6 +690,58 @@ const getDashboard = async (req, res) => {
                 .lean();
 
         // ==================================================
+        // Reconciliation Liabilities / Disputed Captured Funds
+        // ==================================================
+
+        const reconciliationLiabilityResult =
+            await Order.aggregate([
+
+                {
+                    $match: {
+                        $or: [
+                            { reconciliationRequired: true },
+                            {
+                                orderStatus: "Cancelled",
+                                paymentStatus: {
+                                    $in: ["Paid", "PartiallyRefunded"]
+                                }
+                            }
+                        ]
+                    }
+                },
+
+                {
+                    $group: {
+                        _id: null,
+
+                        totalLiability: {
+                            $sum: {
+                                $subtract: [
+                                    "$totalPrice",
+                                    { $ifNull: ["$amountRefunded", 0] }
+                                ]
+                            }
+                        },
+
+                        count: {
+                            $sum: 1
+                        }
+                    }
+                }
+
+            ]);
+
+        const reconciliationLiabilities =
+            reconciliationLiabilityResult.length > 0
+                ? reconciliationLiabilityResult[0].totalLiability
+                : 0;
+
+        const reconciliationOrdersCount =
+            reconciliationLiabilityResult.length > 0
+                ? reconciliationLiabilityResult[0].count
+                : 0;
+
+        // ==================================================
         // Final Dashboard Response
         // ==================================================
 
@@ -673,6 +786,15 @@ const getDashboard = async (req, res) => {
                 todayRevenue,
 
                 currentMonthRevenue,
+
+
+                // -------------------------------
+                // Reconciliation Liabilities
+                // -------------------------------
+
+                reconciliationLiabilities,
+
+                reconciliationOrdersCount,
 
 
                 // -------------------------------

@@ -100,10 +100,17 @@ const createPaymentOrder = async (req, res) => {
         // Already paid
         // --------------------------------------------------
 
-        if (order.paymentStatus === "Paid") {
+        if (order.orderStatus === "Cancelled") {
             return res.status(400).json({
                 success: false,
-                message: "Order is already paid"
+                message: "Cannot initiate payment: Order is cancelled"
+            });
+        }
+
+        if (["Paid", "PartiallyRefunded", "RefundPending", "Refunded"].includes(order.paymentStatus)) {
+            return res.status(400).json({
+                success: false,
+                message: `Cannot initiate payment: Order payment status is ${order.paymentStatus}`
             });
         }
 
@@ -389,16 +396,40 @@ const verifyPayment = async (req, res) => {
         if (
             order.paymentStatus === "Paid"
         ) {
-
             console.log(
                 "ℹ️ Payment already verified"
             );
-
             return res.status(200).json({
                 success: true,
                 message:
                     "Payment already verified",
                 order
+            });
+        }
+
+        if (order.paymentStatus === "PartiallyRefunded") {
+            console.log(
+                "ℹ️ Payment already verified (order partially refunded)"
+            );
+            return res.status(200).json({
+                success: true,
+                message:
+                    "Payment already verified (order partially refunded)",
+                order
+            });
+        }
+
+        if (order.paymentStatus === "RefundPending") {
+            return res.status(400).json({
+                success: false,
+                message: "Order refund is pending"
+            });
+        }
+
+        if (order.paymentStatus === "Refunded") {
+            return res.status(400).json({
+                success: false,
+                message: "Order has already been refunded"
             });
         }
 
@@ -452,10 +483,10 @@ const verifyPayment = async (req, res) => {
                 "❌ Signature length mismatch"
             );
 
-            order.paymentStatus =
-                "Failed";
-
-            await order.save();
+            if (!["Paid", "PartiallyRefunded", "RefundPending", "Refunded"].includes(order.paymentStatus)) {
+                order.paymentStatus = "Failed";
+                await order.save();
+            }
 
             return res.status(400).json({
                 success: false,
@@ -480,10 +511,10 @@ const verifyPayment = async (req, res) => {
                 "❌ Invalid Razorpay signature"
             );
 
-            order.paymentStatus =
-                "Failed";
-
-            await order.save();
+            if (!["Paid", "PartiallyRefunded", "RefundPending", "Refunded"].includes(order.paymentStatus)) {
+                order.paymentStatus = "Failed";
+                await order.save();
+            }
 
             return res.status(400).json({
                 success: false,
@@ -502,8 +533,17 @@ const verifyPayment = async (req, res) => {
         );
         console.log("=================================");
 
-        order.paymentStatus =
-            "Paid";
+        const isCancelled = order.orderStatus === "Cancelled";
+        if (isCancelled) {
+            order.reconciliationRequired = true;
+            console.warn(
+                `🚨 ALERT: Payment ${razorpay_payment_id} verified for CANCELLED order ${order._id}. Marked reconciliationRequired=true.`
+            );
+        }
+
+        if (!["Paid", "PartiallyRefunded", "RefundPending", "Refunded"].includes(order.paymentStatus)) {
+            order.paymentStatus = "Paid";
+        }
 
         order.razorpayPaymentId =
             razorpay_payment_id;
@@ -512,6 +552,15 @@ const verifyPayment = async (req, res) => {
             razorpay_signature;
 
         await order.save();
+
+        if (isCancelled) {
+            return res.status(200).json({
+                success: true,
+                message: "Payment verified for cancelled order; flagged for manual reconciliation",
+                reconciliationRequired: true,
+                order
+            });
+        }
 
         console.log(
             "✅ Order marked as Paid"

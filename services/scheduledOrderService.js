@@ -119,8 +119,8 @@ const processScheduledOrders = async (options = {}) => {
                         continue;
                     }
                 } else {
-                    // PayNow orders MUST have paymentStatus === "Paid"
-                    if (order.paymentStatus !== "Paid") {
+                    // PayNow orders MUST have paymentStatus === "Paid" or "PartiallyRefunded"
+                    if (!["Paid", "PartiallyRefunded"].includes(order.paymentStatus)) {
                         console.log(
                             `⏳ Order ${order._id} is PayNow with paymentStatus ${order.paymentStatus}. Awaiting payment.`
                         );
