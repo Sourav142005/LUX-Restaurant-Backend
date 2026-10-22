@@ -1,12 +1,14 @@
-# 🍽️ LUX-S Backend
+# 🍽️ LUX Restaurant Backend
 
-> Backend API for **LUX-S**, a full-stack Restaurant Management Platform that enables customers to browse menus, reserve tables, and pre-order food through a modern web application.
-
----
+> The backend API for **LUX**, a full-stack restaurant management platform that enables customers to explore menus, reserve tables, and place food orders through a modern web application.
 
 ## 📖 Overview
 
-LUX-S Backend powers the server-side functionality of the LUX-S Restaurant Management Platform. It provides secure authentication, menu management, reservation handling, and order processing through RESTful APIs.
+LUX Restaurant Backend powers the server-side functionality of the LUX restaurant management platform. Built with **Node.js, Express.js, and MongoDB**, it provides RESTful APIs for authentication, menu management, user management, orders, and table reservations.
+
+**Live Application:** https://luxrestaurant.vercel.app/
+
+**Backend API:** https://lux-restaurant-backend.onrender.com
 
 The project is built using the **MERN Stack** with a focus on scalability, clean architecture, and maintainable code.
 
@@ -61,43 +63,58 @@ LUX-Restaurant-Backend/
 
 ---
 
-## ⚙️ Installation
+## ⚙️ Installation & Setup
 
-### Clone the Repository
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) and npm
+- A MongoDB database (local or cloud-hosted)
+- Git
+
+### 1. Clone the Repository
 
 ```bash
 git clone https://github.com/Sourav142005/LUX-Restaurant-Backend.git
-```
-
-### Navigate to the Project
-
-```bash
 cd LUX-Restaurant-Backend
 ```
 
-### Install Dependencies
+### 2. Install Dependencies
 
 ```bash
 npm install
 ```
 
-### Create a `.env` File
+### 3. Configure Environment Variables
+
+Create a `.env` file in the project root:
 
 ```env
 PORT=5000
-
 MONGODB_URI=your_mongodb_connection_string
-
 JWT_SECRET=your_jwt_secret
 ```
 
-### Start the Development Server
+Replace the example values with your own. Check the source code for any additional required environment variables, such as AI or payment API credentials. Never commit real secrets to GitHub.
+
+### 4. Start the Development Server
 
 ```bash
 npm run dev
 ```
 
----
+### 5. Start in Production Mode
+
+```bash
+npm start
+```
+
+### 6. Run Tests
+
+```bash
+npm test
+```
+
+This runs the project's Node.js test files under `tests/`.
 
 ## 📡 Available Modules
 
