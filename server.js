@@ -1,4 +1,5 @@
-require("dotenv").config();
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, ".env") });
 
 const express = require("express");
 const cors = require("cors");
@@ -19,8 +20,13 @@ const tableRoutes = require("./routes/tableRoutes");
 const reservationRoutes = require("./routes/reservationRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 const aiRoutes = require("./routes/aiRoutes");
+const reviewRoutes = require("./routes/reviewRoutes");
+const regularOrderRoutes = require("./routes/regularOrderRoutes");
 
 const app = express();
+
+// Trust the first proxy hop (Render reverse proxy/load balancer)
+app.set("trust proxy", 1);
 
 // ======================================================
 // Start Scheduler
@@ -51,6 +57,7 @@ const defaultAllowedOrigins = [
     "http://127.0.0.1:5174",
     "http://10.47.73.115:5174",
     "https://4c1c10xt-5173.inc1.devtunnels.ms",
+    "https://721xktdt-5173.inc1.devtunnels.ms",
     "https://lux-restaurant-frontend.vercel.app"
 ];
 
@@ -164,6 +171,11 @@ app.use("/api/payment", paymentRoutes);
 
 app.use("/api/ai", aiRoutes);
 
+app.use("/api/review", reviewRoutes);
+
+app.use("/api/regular-orders", regularOrderRoutes);
+app.use("/api/regular-order", regularOrderRoutes);
+
 // ======================================================
 // 404 Handler
 // ======================================================
@@ -182,7 +194,7 @@ app.use((req, res) => {
 app.use((err, req, res, next) => {
     console.error("❌ Server Error:", err.message);
 
-    if (err.message === "Not allowed by CORS") {
+    if (err.message === "Not allowed by CORS" || err.message.startsWith("Not allowed by CORS")) {
         return res.status(403).json({
             success: false,
             message: "CORS policy blocked this request",
@@ -204,11 +216,21 @@ app.use((err, req, res, next) => {
 // Start Server
 // ======================================================
 
-app.listen(PORT, "0.0.0.0", () => {
+const server = app.listen(PORT, "0.0.0.0", () => {
     console.log("========================================");
     console.log("🚀 LUX Restaurant Backend");
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`🌐 Local: http://localhost:${PORT}`);
     console.log(`🌐 API: http://localhost:${PORT}/api`);
     console.log("========================================");
+});
+
+server.on("error", (err) => {
+    if (err.code === "EADDRINUSE") {
+        console.error(`\n❌ Error: Port ${PORT} is already in use by another process.`);
+        console.error("Please terminate the existing process or choose a different port.\n");
+        process.exit(1);
+    } else {
+        console.error("\n❌ Server Error:", err.message);
+    }
 });

@@ -53,6 +53,26 @@ const menuSchema = new mongoose.Schema(
         rating: {
             type: Number,
             default: 0
+        },
+
+        numReviews: {
+            type: Number,
+            default: 0
+        },
+
+        isSeasonalSpecial: {
+            type: Boolean,
+            default: false
+        },
+
+        specialStartDate: {
+            type: Date,
+            default: null
+        },
+
+        specialEndDate: {
+            type: Date,
+            default: null
         }
 
     },

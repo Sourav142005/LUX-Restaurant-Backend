@@ -14,6 +14,22 @@ return crypto
 .update(otp)
 .digest("hex");
 };
+const isDevConsoleOTP = () => {
+return (
+process.env.NODE_ENV?.trim() === "development" &&
+process.env.OTP_DELIVERY?.trim().toLowerCase() === "console"
+);
+};
+const logDevOTP = (phone, otp) => {
+if (isDevConsoleOTP()) {
+console.log("\n========================================");
+console.log("LUX DEVELOPMENT OTP");
+console.log("Phone:", phone);
+console.log("OTP:", otp);
+console.log("Expires: 10 minutes");
+console.log("========================================\n");
+}
+};
 const normalizePhone = (phone) => {
 if (!phone) return null;
 let cleaned = phone.toString().replace(/\D/g, "");
@@ -109,18 +125,8 @@ phoneVerificationOTPAttempts: 0,
 phoneVerificationOTPResendAt: Date.now() + 60 * 1000
 });
 console.log("6️⃣ User created:", user._id);
-// DEVELOPMENT MODE
-if (
-process.env.NODE_ENV === "development" &&
-process.env.OTP_DELIVERY === "console"
-) {
-console.log("\n========================================");
-console.log("LUX DEVELOPMENT OTP");
-console.log("Phone:", normalizedPhone);
-console.log("OTP:", otp);
-console.log("Expires: 10 minutes");
-console.log("========================================\n");
-}
+// Log OTP to terminal in development if OTP_DELIVERY=console
+logDevOTP(normalizedPhone, otp);
 res.status(201).json({
 success: true,
 message:
@@ -297,17 +303,7 @@ Date.now() + 10 * 60 * 1000;
 user.phoneVerificationOTPAttempts = 0;
 user.phoneVerificationOTPResendAt = Date.now() + 60 * 1000;
 await user.save();
-if (
-process.env.NODE_ENV === "development" &&
-process.env.OTP_DELIVERY === "console"
-) {
-console.log("\n========================================");
-console.log("LUX DEVELOPMENT OTP");
-console.log("Phone:", normalizedPhone);
-console.log("OTP:", otp);
-console.log("Expires: 10 minutes");
-console.log("========================================\n");
-}
+logDevOTP(normalizedPhone, otp);
 res.status(200).json({
 success: true,
 message: "A new OTP has been sent"
@@ -511,17 +507,7 @@ Date.now() + 10 * 60 * 1000;
 user.passwordResetOTPAttempts = 0;
 user.passwordResetOTPResendAt = Date.now() + 60 * 1000;
 await user.save();
-if (
-process.env.NODE_ENV === "development" &&
-process.env.OTP_DELIVERY === "console"
-) {
-console.log("\n========================================");
-console.log("LUX DEVELOPMENT OTP");
-console.log("Phone:", normalizedPhone);
-console.log("OTP:", otp);
-console.log("Expires: 10 minutes");
-console.log("========================================\n");
-}
+logDevOTP(normalizedPhone, otp);
 res.status(200).json({
 success: true,
 message:

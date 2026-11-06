@@ -976,6 +976,24 @@ const updateOrderStatus = async (
 
 
         // ==================================================
+        // Reject direct cancellation via generic status update
+        // ==================================================
+
+        if (orderStatus === "Cancelled") {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Order cancellation must be performed via the dedicated cancellation endpoint (PATCH /api/order/:id/cancel) to ensure safe refund and table reconciliation."
+
+            });
+
+        }
+
+
+        // ==================================================
         // Find Order
         // ==================================================
 
@@ -1006,13 +1024,11 @@ const updateOrderStatus = async (
         const allowedTransitions = {
 
             Scheduled: [
-                "Preparing",
-                "Cancelled"
+                "Preparing"
             ],
 
             Pending: [
-                "Preparing",
-                "Cancelled"
+                "Preparing"
             ],
 
             Preparing: [
@@ -1652,7 +1668,8 @@ const cancelOrder = async (
         }
 
         const { cancelOrderAndRefund } = require("../services/orderCancellationService");
-        const result = await cancelOrderAndRefund(order, "Customer cancelled order");
+        const reason = req.body?.reason || (req.user?.role === "admin" ? "Admin cancelled order" : "Customer cancelled order");
+        const result = await cancelOrderAndRefund(order, reason);
 
         if (result.reconciliationRequired || result.uncertain) {
             return res.status(502).json({

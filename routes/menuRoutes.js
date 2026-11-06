@@ -7,6 +7,9 @@ const admin = require("../middleware/admin");
 const {
     getMenu,
     getMenuById,
+    getMostOrderedDishes,
+    getSeasonalSpecials,
+    updateSeasonalSpecial,
     createMenu,
     updateMenu,
     deleteMenu
@@ -17,9 +20,12 @@ const {
 // console.log({ getMenu, getMenuById, createMenu });
 
 router.get("/", getMenu);
+router.get("/most-ordered", getMostOrderedDishes);
+router.get("/seasonal-specials", getSeasonalSpecials);
 router.get("/:id", getMenuById);
 
 router.post("/", auth, admin, createMenu);
+router.put("/:id/seasonal-special", auth, admin, updateSeasonalSpecial);
 router.put("/:id", auth, admin, updateMenu);
 router.delete("/:id", auth, admin, deleteMenu);
 
