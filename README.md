@@ -1,475 +1,576 @@
-# <div align="center">🍽️ LUX RESTAURANT BACKEND</div>
+# 🍽️ LUX RESTAURANT BACKEND
 
-<div align="center">
+**Node.js and Express API for the LUX Restaurant Platform**
 
-**Enterprise Node.js & Express API for Luxury Dining, Real-Time Orchestration & Financial Reconciliation**
+[![Deployed API](https://img.shields.io/badge/Deployed%20API-Render-0B0B0B?style=for-the-badge&logo=render)](https://lux-restaurant-backend.onrender.com)
+[![Live Website](https://img.shields.io/badge/Live%20Frontend-Vercel-D4AF7C?style=for-the-badge&logo=vercel)](https://luxrestaurant.vercel.app/)
+[![Node.js](https://img.shields.io/badge/Node.js-20%2B-339933?style=flat-square&logo=node.js)](https://nodejs.org/)
+[![Express](https://img.shields.io/badge/Express-5-000000?style=flat-square&logo=express)](https://expressjs.com/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose-47A248?style=flat-square&logo=mongodb)](https://www.mongodb.com/)
+[![Tests](https://img.shields.io/badge/Tests-130%20Passed-brightgreen?style=flat-square)](tests/)
 
-[![Deployed API](https://img.shields.io/badge/Deployed%20API-onrender.com-0B0B0B?style=for-the-badge&logo=render&logoColor=D4AF7C)](https://lux-restaurant-backend.onrender.com)
-[![Live Website](https://img.shields.io/badge/Live%20Frontend-luxrestaurant.vercel.app-D4AF7C?style=for-the-badge&logo=vercel&logoColor=white)](https://luxrestaurant.vercel.app/)
-[![GitHub Frontend](https://img.shields.io/badge/GitHub-Frontend%20Repo-2B1F14?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Sourav142005/LUX-Restaurant-Frontend)
-
-<br/>
-
-[![Node.js](https://img.shields.io/badge/Node.js-v18%2B%20%7C%20v20%2B-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org/)
-[![Express.js](https://img.shields.io/badge/Express.js-v5.2-000000?style=flat-square&logo=express&logoColor=white)](https://expressjs.com/)
-[![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose%20v8.2-47A248?style=flat-square&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
-[![Razorpay](https://img.shields.io/badge/Razorpay-Phase%202A%20Hardened-02042B?style=flat-square&logo=razorpay&logoColor=3395FF)](https://razorpay.com/)
-[![Google Gemini](https://img.shields.io/badge/Google%20Gemini-AI%20Concierge-4285F4?style=flat-square&logo=google&logoColor=white)](https://ai.google.dev/)
-[![Tests](https://img.shields.io/badge/Tests-87%20Passed%20(10%20Suites)-brightgreen?style=flat-square&logo=node.js&logoColor=white)](tests/)
-[![License](https://img.shields.io/badge/License-ISC-D4AF7C?style=flat-square)](package.json)
-
-</div>
+**Backend Repository:** [LUX-Restaurant-Backend](https://github.com/Sourav142005/LUX-Restaurant-Backend)  
+**Frontend Repository:** [LUX-Restaurant-Frontend](https://github.com/Sourav142005/LUX-Restaurant-Frontend)
 
 ---
 
-## 📖 Executive Overview
+## 📖 Overview
 
-**LUX Restaurant Backend** is an enterprise-grade RESTful API built on **Node.js, Express 5, and MongoDB (Mongoose 8)**. It drives the end-to-end operational and financial workflows for the **LUX Restaurant Platform**, powering table reservations, multi-channel food ordering, physical floor plans, autonomous kitchen scheduling, conversational artificial intelligence, and payment handling.
+LUX Restaurant Backend is a RESTful API built using **Node.js, Express 5, MongoDB, and Mongoose**. It powers the customer-facing restaurant application and administrative workflows, including authentication, menu management, reservations, food ordering, online payments, customer reviews, saved regular orders, seasonal specials, and operational reporting.
 
-The API features an implementation of **Phase 2A Payment & Refund Hardening**, ensuring raw-body HMAC webhook signature verification, event deduplication, full and partial refund audit logging, out-of-order event resilience, and transaction safety during order cancellations.
+The backend also integrates **Razorpay** for online payments and refunds and **Google Gemini** for the LUX AI Dining Concierge.
 
----
-
-## 📑 Table of Contents
-
-- [Executive Overview](#-executive-overview)
-- [System Architecture & Flow](#-system-architecture--flow)
-- [Core Functional Capabilities](#-core-functional-capabilities)
-  - [Authentication & Identity](#1-authentication--identity)
-  - [Order Lifecycle & Payment Policies](#2-order-lifecycle--payment-policies)
-  - [Phase 2A Razorpay Hardening & Refunds](#3-phase-2a-razorpay-hardening--refunds)
-  - [Floor Management & Reservation Engine](#4-floor-management--reservation-engine)
-  - [Autonomous Background Scheduler](#5-autonomous-background-scheduler)
-  - [LUX AI Dining Concierge](#6-lux-ai-dining-concierge)
-- [Directory Structure](#-directory-structure)
-- [Getting Started & Local Setup](#-getting-started--local-setup)
-  - [Prerequisites](#prerequisites)
-  - [Installation](#installation)
-  - [Environment Configuration](#environment-configuration)
-  - [Available Scripts](#available-scripts)
-- [API Reference Guide](#-api-reference-guide)
-  - [Authentication Routes](#authentication-routes-apiauth)
-  - [Menu & Category Routes](#menu--category-routes)
-  - [Order Management Routes](#order-management-routes-apiorder)
-  - [Payment & Webhook Routes](#payment--webhook-routes-apipayment)
-  - [Floor & Reservation Routes](#floor--reservation-routes)
-  - [Admin & Analytics Routes](#admin--analytics-routes-apiadmin)
-  - [LUX AI Concierge Routes](#lux-ai-concierge-routes-apiai)
-- [Automated Testing Suite](#-automated-testing-suite)
-- [Deployment Guide (Render)](#-deployment-guide-render)
-- [Security & Operational Best Practices](#-security--operational-best-practices)
-- [Cross-Repository Ecosystem](#-cross-repository-ecosystem)
-- [Author & Acknowledgments](#-author--acknowledgments)
-
----
-
-## 🏛️ System Architecture & Flow
-
-```mermaid
-flowchart TD
-    Client["Client Request (Frontend / Postman)"] --> Proxy["Reverse Proxy (Render / Trust Proxy)"]
-    Proxy --> Middleware["Express Middleware Pipeline"]
-
-    subgraph Pipeline["Middleware Layer"]
-        CORS["CORS (Dynamic Origin & *.vercel.app Whitelist)"]
-        RateLimit["Rate Limiters (Auth, OTP, AI)"]
-        RawBody["express.json (req.rawBody captured)"]
-        AuthGuard["JWT Auth & Role-Based Access Guard"]
-    end
-
-    Middleware --> CORS
-    CORS --> RateLimit
-    RateLimit --> RawBody
-    RawBody --> AuthGuard
-
-    subgraph Controllers["Controller & Service Execution"]
-        AuthCtrl["authController"]
-        OrderCtrl["orderController & orderCancellationService"]
-        PaymentCtrl["paymentController & webhookController"]
-        SchedSvc["scheduledOrderService (Cron/Interval)"]
-        AISvc["aiService (Gemini + Local Cache)"]
-    end
-
-    AuthGuard --> AuthCtrl
-    AuthGuard --> OrderCtrl
-    AuthGuard --> PaymentCtrl
-    AuthGuard --> AISvc
-
-    subgraph DataStore["Persistence & External APIs"]
-        Mongoose[("MongoDB Atlas Database")]
-        RazorpayGateway["Razorpay Gateway (Orders, Refunds, Webhooks)"]
-        GoogleGemini["Google Gemini GenAI API"]
-    end
-
-    OrderCtrl --> Mongoose
-    OrderCtrl --> RazorpayGateway
-    PaymentCtrl --> RazorpayGateway
-    PaymentCtrl --> Mongoose
-    SchedSvc --> Mongoose
-    AISvc --> GoogleGemini
-    AISvc -.->|"Live Menu"| Mongoose
-```
-
----
+Payment processing includes webhook signature verification, duplicate-event protection, refund tracking, and reconciliation safeguards to improve financial reliability.
 
 ## ✨ Core Functional Capabilities
 
 ### 1. Authentication & Identity
-- **Dual Verification Paths:** Supports standard email/password authentication alongside SMS/Phone OTP verification for mobile-first hospitality workflows.
-- **Stateless JWT Tokens:** Encrypted JSON Web Tokens signed with secret-key expiration (24h) and role claims (`customer`, `admin`).
-- **Granular Rate Limiting:** Brute-force protection applied specifically to login, registration, and OTP dispatch points via `express-rate-limit`.
-- **Password Recovery:** Signed time-limited tokens for web reset alongside numeric OTP codes for mobile verification.
 
-### 2. Order Lifecycle & Payment Policies
-- **Dining Modes:** `Dine-In`, `Takeaway`, and `Delivery`.
-- **Payment Policies:**
-  - `PayNow`: Required for Takeaway and Delivery orders; optional for Dine-In. Requires instant gateway capture before kitchen dispatch.
-  - `PayAfterDining`: Exclusively allowed for verified Dine-In guests with an active table or seated reservation.
-- **Lifecycle Progression:** Deterministic state machine enforcing valid transitions:<br/>
-  `Scheduled` ➔ `Pending` ➔ `Preparing` ➔ `Ready` ➔ `Delivered` / `Cancelled`.
-- **Dedicated Cancellation Route:** Generic `PUT /api/order/:id` strictly rejects transitioning to `Cancelled` with HTTP 400, forcing requests through `PATCH /api/order/:id/cancel` to guarantee financial and table-release reconciliation.
+- Customer registration and login.
+- Phone OTP verification.
+- Email and phone-based password recovery.
+- JWT-based authentication.
+- Role-based access control for customers and administrators.
+- Rate limiting for sensitive authentication endpoints.
 
-### 3. Phase 2A Razorpay Hardening & Refunds
-- **Raw-Body HMAC Verification:** Captures untampered byte buffers via `express.json({ verify })` (`req.rawBody`) to calculate cryptographic SHA-256 signatures against `RAZORPAY_WEBHOOK_SECRET`.
-- **Event Deduplication:** Maintains a durable `processedWebhookEvents` ledger per order to safely drop duplicate or retransmitted gateway events.
-- **Full & Partial Refund Audit Ledger:** Orders maintain an atomic array of refunds:
-  ```json
-  "refunds": [
-    {
-      "refundId": "rfnd_XXXXXXXXXXXX",
-      "amount": 149.00,
-      "status": "processed",
-      "createdAt": "2026-10-18T13:08:02.973Z"
-    }
-  ]
-  ```
-- **Monotonic Accounting:** Cumulative `amountRefunded` tracks refund totals accurately, recalculating remaining refundable balances (`totalPrice - amountRefunded`) on every cancellation request.
-- **Unpaid Cancellation Bypass:** For orders with `paymentStatus: "Pending"`, the cancellation service modifies status to `Cancelled` and safely bypasses all gateway refund API calls (`refunded: false`, `refundId: null`).
-- **Durable Reconciliation Flag:** When network timeouts occur during gateway calls, orders are tagged with `reconciliationRequired: true` to flag them for administrative review without corrupting balances.
+### 2. Menu Management & Discovery
 
-### 4. Floor Management & Reservation Engine
-- **Floor Plan Orchestration:** Tracks table inventory (`capacity`, `tableType`, `status: Available | Occupied | Reserved`).
-- **Walk-In QR Integration:** Table-specific QR links allow customers to claim a table immediately upon seated ordering.
-- **Reservation Conflict Detection:** Evaluates temporal overlap against target capacity to prevent double bookings.
-- **Safe Floor Release:** Walk-in tables are automatically released back to `Available` upon order cancellation or explicit administrative closing (`POST /api/order/:id/close-table`). Seated reservation tables remain locked to protect dining schedules.
+- Complete menu and category management.
+- Menu item creation, editing, deletion, and availability management.
+- Support for dish information, pricing, and 3D model references.
+- **Most Ordered Dishes:** Identifies popular dishes using eligible order quantities over a rolling seven-day period.
+- Excludes cancelled, pending, reconciliation-flagged, and other ineligible orders from popularity calculations.
+- **Seasonal Specials:** Administrators can mark dishes as seasonal specials and configure optional start and end dates.
+- Public seasonal-special listings respect the configured availability period.
 
-### 5. Autonomous Background Scheduler
-- Continuous daemon (`services/scheduler.js`) executing every 60 seconds:
-  1. **Scheduled Order Activation:** Scans for reservation orders due within 30 minutes (calculated in Indian Standard Time `Asia/Kolkata`), verifies payment or `PayAfterDining` policies, transitions order status to `Pending` for kitchen prep, and occupies the reserved table.
-  2. **Expired Reservation Sweep:** Automatically completes past dining sessions and clears occupied table states.
-  3. **Concurrency Locks & State Rollback:** Implements simulated atomic check-and-set guards to prevent duplicate processing by concurrent worker instances.
+### 3. Order Management
 
-### 6. LUX AI Dining Concierge
-- **Astra Conversational Intelligence (`/api/ai/chat`):** Integrated with Google Gemini (`@google/genai`) to provide natural language dish recommendations, wine pairings, ingredient advisories, and price checks.
-- **Dynamic In-Memory Caching:** Automatically synchronizes and caches live menu data (60-second TTL) to ensure the AI never recommends 86'd (unavailable) menu items.
-- **Deterministic Rule Fallback:** Resilient rule engine kicks in automatically if external API quotas are exhausted or offline, guaranteeing zero customer-facing errors.
-- **Structured Cart Action:** Directly emits structured JSON payloads (`itemsToCart`) to populate the user's client-side cart.
+- Supports Dine-In, Takeaway, and Delivery orders.
+- PayNow and eligible PayAfterDining payment policies.
+- Order lifecycle management.
+- Order history and individual order retrieval.
+- Dedicated order cancellation workflow.
+- Table session closing and floor availability synchronization.
+- Scheduled order processing.
+
+Order status progression:
+
+`Scheduled → Pending → Preparing → Ready → Delivered`
+
+Orders may also be cancelled through the dedicated cancellation workflow.
+
+### 4. Razorpay Payment & Refund Management
+
+- Razorpay payment order generation.
+- Client-side payment verification.
+- Raw-body HMAC webhook signature verification.
+- Duplicate webhook event detection.
+- Full and partial refund support.
+- Refund transaction audit records.
+- Cumulative refunded amount tracking.
+- Safe handling of unpaid order cancellations.
+- Reconciliation flags for payment operations requiring administrative attention.
+
+### 5. Table & Reservation Management
+
+- Physical restaurant table inventory.
+- Table capacity and status management.
+- Table-specific QR integration.
+- Reservation availability checking.
+- Reservation booking and cancellation.
+- Prevention of overlapping reservation bookings.
+- Automatic table status synchronization.
+
+### 6. Ratings & Reviews
+
+- Customers can submit ratings from 1 to 5 stars.
+- Optional review comments with a maximum length of 500 characters.
+- One review per customer per menu item.
+- Review editing and deletion.
+- Only customers with qualifying delivered orders can review a dish.
+- Backend verifies purchase eligibility and review ownership.
+- Menu ratings and review counts are recalculated after review changes.
+
+### 7. My Regular Orders
+
+- Customers can create multiple private collections of frequently ordered dishes.
+- Create, rename, and delete collections.
+- Add dishes to collections.
+- Update saved item quantities.
+- Remove individual dishes.
+- Validate saved collections before reordering.
+- Reorder validation checks current menu availability and pricing.
+
+Saved collections do not store fixed dish prices. Current menu data is used during reorder validation. Validation itself does not create an order or initiate payment.
+
+### 8. LUX AI Dining Concierge
+
+- Google Gemini-powered conversational assistant.
+- Natural-language dish recommendations.
+- Live menu context.
+- Availability-aware recommendations.
+- Rule-based fallback when the external AI service is unavailable or rate-limited.
+- Structured cart suggestions for frontend integration.
 
 ---
 
-## 📂 Directory Structure
+## 🏛️ System Architecture
+
+```mermaid
+flowchart TD
+    Client["Frontend / API Client"] --> Server["Express API Server"]
+
+    Server --> Middleware["Middleware Layer"]
+    Middleware --> CORS["CORS & Rate Limiting"]
+    CORS --> Auth["JWT Authentication & Authorization"]
+
+    Auth --> Routes["API Routes"]
+    Routes --> Controllers["Controllers"]
+
+    Controllers --> Services["Business Services"]
+    Controllers --> Models["Mongoose Models"]
+
+    Services --> Models
+    Models --> DB[("MongoDB Database")]
+
+    Services --> Razorpay["Razorpay Gateway"]
+    Services --> Gemini["Google Gemini API"]
+
+    Razorpay --> Webhook["Payment Webhooks"]
+    Webhook --> Server
+```
+
+## 🛠️ Technology Stack
+
+| Category | Technology |
+|---|---|
+| Runtime | Node.js |
+| Backend Framework | Express 5 |
+| Database | MongoDB |
+| ODM | Mongoose |
+| Authentication | JWT |
+| Password Security | bcryptjs |
+| Payment Gateway | Razorpay |
+| AI Integration | Google Gemini |
+| Rate Limiting | express-rate-limit |
+| Testing | Node.js Built-in Test Runner |
+| Deployment | Render |
+
+---
+
+## 📂 Project Structure
+
+The following is a high-level representation of the backend organization. Confirm individual filenames against the current repository.
 
 ```text
 backend/
+│
 ├── config/
-│   └── db.js                       # Mongoose connection with Windows DNS fallback
+│   └── db.js
+│
 ├── controllers/
-│   ├── adminController.js          # Operations metrics, net revenue, liabilities
-│   ├── authController.js           # Registration, login, OTP dispatch, passwords
-│   ├── categoryController.js       # Menu category classification
-│   ├── menuController.js           # Dish catalog CRUD, pricing, availability
-│   ├── orderController.js          # Order lifecycle, payments, safe cancellation
-│   ├── paymentController.js        # Razorpay order generation & manual verification
-│   ├── reservationController.js    # Table reservation booking & expiry sweeps
-│   ├── tableController.js          # Physical floor plan inventory & QR generation
-│   ├── userController.js           # User directory & role audits
-│   └── webhookController.js        # Raw-body Razorpay webhook event processing
+│   ├── adminController.js
+│   ├── authController.js
+│   ├── categoryController.js
+│   ├── menuController.js
+│   ├── orderController.js
+│   ├── paymentController.js
+│   ├── reservationController.js
+│   ├── tableController.js
+│   ├── userController.js
+│   └── webhookController.js
+│
 ├── middleware/
-│   ├── admin.js                    # Role-based administrative authorization guard
-│   ├── auth.js                     # JWT verification & req.user identity population
-│   └── rateLimiter.js              # Rate-limiting policies for auth, OTP & AI
+│   ├── admin.js
+│   ├── auth.js
+│   └── rateLimiter.js
+│
 ├── models/
-│   ├── Category.js                 # Category schema definition
-│   ├── Menu.js                     # Menu dish schema, 3D model links, spice rating
-│   ├── Order.js                    # Order schema with Phase 2A refund ledger
-│   ├── Payment.js                  # Payment audit record schema
-│   ├── Reservation.js              # Booking records, party size, time slots
-│   ├── Table.js                    # Floor layout, capacity, status tracking
-│   └── User.js                     # User profile, password hashes, OTP states
+│   ├── Category.js
+│   ├── Menu.js
+│   ├── Order.js
+│   ├── Payment.js
+│   ├── Reservation.js
+│   ├── Review.js
+│   ├── RegularOrder.js
+│   ├── Table.js
+│   └── User.js
+│
 ├── routes/
-│   ├── adminRoutes.js              # /api/admin endpoints
-│   ├── aiRoutes.js                 # /api/ai endpoints
-│   ├── authRoutes.js               # /api/auth endpoints
-│   ├── categoryRoutes.js           # /api/category endpoints
-│   ├── menuRoutes.js               # /api/menu endpoints
-│   ├── orderRoutes.js              # /api/order endpoints
-│   ├── paymentRoutes.js            # /api/payment endpoints
-│   ├── reservationRoutes.js        # /api/reservation endpoints
-│   ├── tableRoutes.js              # /api/table endpoints
-│   └── userRoutes.js               # /api/user endpoints
+│   ├── adminRoutes.js
+│   ├── aiRoutes.js
+│   ├── authRoutes.js
+│   ├── categoryRoutes.js
+│   ├── menuRoutes.js
+│   ├── orderRoutes.js
+│   ├── paymentRoutes.js
+│   ├── reservationRoutes.js
+│   ├── reviewRoutes.js
+│   ├── regularOrderRoutes.js
+│   ├── tableRoutes.js
+│   └── userRoutes.js
+│
 ├── services/
-│   ├── aiService.js                # Gemini integration, caching & rule fallback
-│   ├── orderCancellationService.js # Phase 2A safe refund & reconciliation logic
-│   ├── razorpayService.js          # Centralized Razorpay SDK client instance
-│   ├── scheduledOrderService.js    # Timed order activation & floor synchronization
-│   └── scheduler.js                # 60-second periodic background task daemon
+│   ├── aiService.js
+│   ├── orderCancellationService.js
+│   ├── razorpayService.js
+│   ├── scheduledOrderService.js
+│   └── scheduler.js
+│
 ├── tests/
-│   ├── orderPaymentPolicy.test.js  # Policy validation & cancellation guard tests
-│   ├── scheduledOrderService.test.js # Timed activation, timezone & rollback tests
-│   └── webhook.test.js             # Webhook signature, deduplication & refund tests
-├── package.json                    # Project dependencies & test scripts
-├── server.js                       # Express app bootstrap, CORS, proxy trust & routes
-└── README.md                       # Comprehensive backend documentation
+│
+├── package.json
+├── server.js
+└── README.md
 ```
 
 ---
 
-## 🚀 Getting Started & Local Setup
+## 🚀 Getting Started
 
 ### Prerequisites
 
-- **Node.js:** `v18.0.0` or higher (`v20.x` or `v22.x` recommended)
-- **MongoDB:** Local MongoDB instance or free cloud cluster on [MongoDB Atlas](https://www.mongodb.com/atlas)
-- **Razorpay Account:** Test Mode credentials from the [Razorpay Dashboard](https://dashboard.razorpay.com/)
-- **Google AI Studio Key:** (Optional) API key for Gemini assistant features from [Google AI Studio](https://aistudio.google.com/)
+- Node.js 20 or later recommended.
+- npm package manager.
+- MongoDB local installation or MongoDB Atlas account.
+- Razorpay test credentials for payment testing.
+- Google AI Studio API key for AI functionality.
 
-### Installation
+### 1. Clone the Repository
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/Sourav142005/LUX-Restaurant-Backend.git
-   cd LUX-Restaurant-Backend
-   ```
+```bash
+git clone https://github.com/Sourav142005/LUX-Restaurant-Backend.git
+```
 
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+### 2. Navigate to the Project
 
-### Environment Configuration
+```bash
+cd LUX-Restaurant-Backend
+```
 
-Create a `.env` file in the `backend` root. Fill in the placeholders with your test credentials:
+### 3. Install Dependencies
+
+```bash
+npm install
+```
+
+### 4. Environment Configuration
+
+Create a `.env` file in the backend root directory.
 
 ```dotenv
-# ======================================================
-# Server Environment
-# ======================================================
+# Server
 PORT=5000
 NODE_ENV=development
 
-# ======================================================
 # Database
-# ======================================================
-MONGO_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/lux_restaurant?retryWrites=true&w=majority
+MONGO_URI=your_mongodb_connection_string
 
-# ======================================================
 # Authentication
-# ======================================================
-JWT_SECRET=your_super_secret_jwt_signing_key_min_32_chars
+JWT_SECRET=your_long_random_jwt_secret
 
-# ======================================================
-# CORS Configuration (Comma-separated allowed origins)
-# ======================================================
+# CORS
 CLIENT_URL=http://localhost:5173,http://localhost:5174,https://luxrestaurant.vercel.app
 
-# ======================================================
-# Razorpay Test Mode Credentials
-# ======================================================
-RAZORPAY_KEY_ID=rzp_test_your_test_key_id
+# Razorpay
+RAZORPAY_KEY_ID=your_razorpay_key_id
 RAZORPAY_KEY_SECRET=your_razorpay_key_secret
 RAZORPAY_WEBHOOK_SECRET=your_razorpay_webhook_secret
 
-# ======================================================
-# Artificial Intelligence (LUX AI Concierge)
-# ======================================================
+# Google Gemini
 GEMINI_API_KEY=your_gemini_api_key
 
-# ======================================================
-# OTP & Delivery Configuration
-# ======================================================
+# OTP
 OTP_DELIVERY=console
 ```
 
-> [!CAUTION]
-> Never commit `.env` or production credentials to source control. The `.gitignore` file is pre-configured to exclude all environment and secret files.
+Replace all placeholder values with your actual configuration.
+
+> **Security:** Never commit `.env` files or expose backend secrets in frontend code. Keep production credentials inside the deployment provider's environment-variable settings.
+
+### 5. Run the Development Server
+
+```bash
+npm run dev
+```
+
+The backend uses port `5000` by default.
 
 ### Available Scripts
 
-| Command | Purpose |
-| :--- | :--- |
-| `npm run dev` | Starts the server in development mode using `nodemon` with automatic reload |
-| `npm start` | Launches the production Express server (`node server.js`) |
-| `npm test` | Runs the automated Node.js test suite across all 10 test suites (`node --test tests/*.test.js`) |
+| Command | Description |
+|---|---|
+| `npm run dev` | Starts the development server using nodemon. |
+| `npm start` | Starts the production server using Node.js. |
+| `npm test` | Executes automated tests using the Node.js test runner. |
 
 ---
 
-## 📡 API Reference Guide
+## 📡 API Reference
 
-All API endpoints are prefixed with `/api`.
+All endpoints use the `/api` prefix.
 
-### Authentication Routes (`/api/auth`)
+The following tables summarize the documented API routes. Check the corresponding route files for the exact current implementation and access requirements.
 
-| Method | Path | Access | Description |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/api/auth/register` | Public | Register new customer account (name, email, phone, password) |
-| `POST` | `/api/auth/login` | Public | Authenticate via email or phone number with password |
-| `POST` | `/api/auth/verify-phone` | Public | Verify 6-digit registration OTP |
-| `POST` | `/api/auth/resend-phone-otp` | Public | Request a fresh phone verification OTP |
-| `POST` | `/api/auth/forgot-password` | Public | Send password reset token to registered email |
-| `POST` | `/api/auth/forgot-password-phone`| Public | Dispatch password reset OTP to registered phone |
-| `POST` | `/api/auth/reset-password/:token`| Public | Reset password using email verification token |
-| `POST` | `/api/auth/reset-password-phone` | Public | Reset password using phone OTP |
-| `GET` | `/api/auth/profile` | Authenticated | Retrieve authenticated user profile |
-| `GET` | `/api/auth/admin-test` | Admin | Validate administrative authorization guard |
+### Authentication Routes — `/api/auth`
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/auth/register` | Register a customer account. |
+| POST | `/api/auth/login` | Authenticate a customer. |
+| POST | `/api/auth/verify-phone` | Verify phone OTP. |
+| POST | `/api/auth/resend-phone-otp` | Resend phone verification OTP. |
+| POST | `/api/auth/forgot-password` | Start email password recovery. |
+| POST | `/api/auth/forgot-password-phone` | Start phone-based password recovery. |
+| POST | `/api/auth/reset-password/:token` | Reset password using email token. |
+| POST | `/api/auth/reset-password-phone` | Reset password using phone OTP. |
+| GET | `/api/auth/profile` | Retrieve authenticated user profile. |
 
 ### Menu & Category Routes
 
-| Method | Path | Access | Description |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/api/menu` | Public | Retrieve active menu catalog with category population |
-| `GET` | `/api/menu/:id` | Public | Retrieve detailed menu item by MongoDB ObjectId |
-| `POST` | `/api/menu` | Admin | Create a new menu item |
-| `PUT` | `/api/menu/:id` | Admin | Update dish details, price, availability, or 3D model link |
-| `DELETE` | `/api/menu/:id` | Admin | Delete dish from menu catalog |
-| `GET` | `/api/category` | Public | List all culinary categories |
-| `POST` | `/api/category` | Admin | Create a new category |
-| `PUT` | `/api/category/:id` | Admin | Update category name or description |
-| `DELETE` | `/api/category/:id` | Admin | Delete category |
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/menu` | Retrieve menu items. |
+| GET | `/api/menu/:id` | Retrieve a specific menu item. |
+| GET | `/api/menu/most-ordered` | Retrieve most-ordered dishes. |
+| GET | `/api/menu/seasonal-specials` | Retrieve active seasonal specials. |
+| POST | `/api/menu` | Create a menu item. |
+| PUT | `/api/menu/:id` | Update menu item details. |
+| DELETE | `/api/menu/:id` | Delete a menu item. |
+| PUT | `/api/menu/:id/seasonal-special` | Update seasonal-special settings. |
+| GET | `/api/category` | Retrieve categories. |
+| POST | `/api/category` | Create a category. |
+| PUT | `/api/category/:id` | Update a category. |
+| DELETE | `/api/category/:id` | Delete a category. |
 
-### Order Management Routes (`/api/order`)
+### Order Management Routes — `/api/order`
 
-| Method | Path | Access | Description |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/api/order` | Authenticated | Create a new order (validates payment policy, table & items) |
-| `GET` | `/api/order/my` | Authenticated | Retrieve logged-in customer's order history |
-| `GET` | `/api/order/:id` | Authenticated | Retrieve single order details |
-| `PATCH` | `/api/order/:id/cancel` | Authenticated / Admin | **Safe Cancellation:** Unpaid orders bypass refund; paid orders execute remaining balance refund |
-| `POST` | `/api/order/:orderId/payment` | Authenticated | Generate a Razorpay order in paise for online settlement |
-| `POST` | `/api/order/:orderId/payment/verify` | Authenticated | Client-side HMAC signature verification |
-| `POST` | `/api/order/:id/close-table` | Authenticated | Close table session and release floor availability |
-| `GET` | `/api/order` | Admin | Query all orders (supports `reconciliationRequired=true` filter) |
-| `PUT` | `/api/order/:id` | Admin | Update kitchen order status (`Pending` ➔ `Preparing` ➔ `Ready` ➔ `Delivered`) |
-| `DELETE`| `/api/order/:id` | Admin | Delete order record |
-| `POST` | `/api/order/process-scheduled` | Admin | Manually trigger scheduled order processor |
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/order` | Create a new order. |
+| GET | `/api/order/my` | Retrieve customer order history. |
+| GET | `/api/order/:id` | Retrieve order details. |
+| PATCH | `/api/order/:id/cancel` | Cancel an order safely. |
+| POST | `/api/order/:orderId/payment` | Generate a Razorpay payment order. |
+| POST | `/api/order/:orderId/payment/verify` | Verify payment signature. |
+| POST | `/api/order/:id/close-table` | Close a table session. |
+| GET | `/api/order` | Retrieve orders for administration. |
+| PUT | `/api/order/:id` | Update order status. |
+| DELETE | `/api/order/:id` | Delete an order. |
+| POST | `/api/order/process-scheduled` | Trigger scheduled-order processing. |
 
-### Payment & Webhook Routes (`/api/payment`)
+### Payment & Webhook Routes — `/api/payment`
 
-| Method | Path | Access | Description |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/api/payment/webhook` | Webhook (HMAC) | **Razorpay Webhook Handler:** Raw-body verified event listener (`payment.captured`, `order.paid`, `payment.failed`, `refund.processed`, `refund.failed`) |
-| `POST` | `/api/payment/create` | Authenticated | Alternate entry point for Razorpay order initialization |
-| `POST` | `/api/payment/verify` | Authenticated | Alternate entry point for client payment verification |
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/payment/webhook` | Process Razorpay webhook events. |
+| POST | `/api/payment/create` | Create a payment. |
+| POST | `/api/payment/verify` | Verify a payment. |
 
-### Floor & Reservation Routes
+### Table & Reservation Routes
 
-| Method | Path | Access | Description |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/api/table` | Authenticated | Retrieve complete floor plan inventory |
-| `POST` | `/api/table` | Admin | Create new physical table (number, capacity, location) |
-| `PUT` | `/api/table/:id/status` | Admin | Modify table status (`Available`, `Occupied`, `Reserved`) |
-| `DELETE`| `/api/table/:id` | Admin | Remove table from inventory |
-| `GET` | `/api/reservation/available` | Authenticated | Query available tables for specified date, time, and guest count |
-| `POST` | `/api/reservation` | Authenticated | Book a table reservation |
-| `GET` | `/api/reservation/my` | Authenticated | Retrieve authenticated user's reservations |
-| `PATCH` | `/api/reservation/:id/cancel`| Authenticated | Cancel personal table reservation |
-| `GET` | `/api/reservation` | Admin | Query all restaurant reservations |
-| `PUT` | `/api/reservation/:id/status`| Admin | Update reservation status (`Confirmed`, `Cancelled`, `Completed`) |
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/table` | Retrieve table inventory. |
+| POST | `/api/table` | Create a table. |
+| PUT | `/api/table/:id/status` | Update table status. |
+| DELETE | `/api/table/:id` | Delete a table. |
+| GET | `/api/reservation/available` | Check table availability. |
+| POST | `/api/reservation` | Create a reservation. |
+| GET | `/api/reservation/my` | Retrieve customer reservations. |
+| PATCH | `/api/reservation/:id/cancel` | Cancel a reservation. |
+| GET | `/api/reservation` | Retrieve all reservations. |
+| PUT | `/api/reservation/:id/status` | Update reservation status. |
 
-### Admin & Analytics Routes (`/api/admin`)
+### Ratings & Reviews Routes — `/api/review`
 
-| Method | Path | Access | Description |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/api/admin/dashboard` | Admin | Comprehensive KPI aggregation: Net Revenue (gross minus processed refunds), active orders, customer counts, pending liabilities |
-| `GET` | `/api/admin/orders` | Admin | Administrative order inspection pipeline |
-| `GET` | `/api/user` | Admin | Directory of registered customer accounts and roles |
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/review/menu/:menuId` | Retrieve reviews for a menu item. |
+| POST | `/api/review` | Submit a review. |
+| PUT | `/api/review/:id` | Update an owned review. |
+| DELETE | `/api/review/:id` | Delete an owned review. |
+| GET | `/api/review/my/:menuId` | Retrieve the current user's review. |
 
-### LUX AI Concierge Routes (`/api/ai`)
+### My Regular Orders
 
-| Method | Path | Access | Description |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/api/ai/chat` | Public (Rate-Limited)| Conversational food recommendation assistant. Accepts `{ message, context }` and returns `{ reply, action, itemsToCart }` |
+The regular-order feature provides customer-owned collections of frequently ordered dishes.
+
+The backend supports both `/api/regular-orders` and `/api/regular-order` route prefixes.
+
+Supported operations include:
+
+- List and retrieve collections.
+- Create, rename, and delete collections.
+- Add dishes to a collection.
+- Update saved quantities.
+- Remove dishes.
+- Validate saved collections for reordering.
+
+Exact action suffixes should be checked in the current regular-order route file.
+
+### Admin & Analytics Routes
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/admin/dashboard` | Retrieve dashboard metrics and operational summaries. |
+| GET | `/api/admin/orders` | Retrieve administrative order data. |
+| GET | `/api/user` | Retrieve user directory. |
+
+### LUX AI Concierge — `/api/ai`
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/ai/chat` | Send a message to the LUX AI Dining Concierge. |
+
+---
+
+## 💳 Payment & Refund Safeguards
+
+The payment system includes safeguards designed to maintain consistency between order records and gateway transactions.
+
+### Webhook Security
+
+- Captures the raw request body for signature verification.
+- Uses HMAC SHA-256 verification with the configured webhook secret.
+- Uses constant-time signature comparison.
+- Records processed webhook events to prevent duplicate processing.
+
+### Refund Management
+
+- Supports full and partial refunds.
+- Maintains refund identifiers, amounts, statuses, and timestamps.
+- Tracks cumulative refunded amounts.
+- Calculates the remaining refundable balance.
+- Avoids gateway refund calls for unpaid orders.
+- Marks orders requiring manual review with `reconciliationRequired`.
+
+### Webhook Configuration
+
+Configure the following endpoint in your Razorpay dashboard:
+
+```text
+https://lux-restaurant-backend.onrender.com/api/payment/webhook
+```
+
+The webhook secret configured in Razorpay must match the backend's `RAZORPAY_WEBHOOK_SECRET` environment variable.
+
+Enable only the webhook events supported by the current webhook handler.
+
+---
+
+## ⏱️ Background Scheduler
+
+The backend includes a periodic scheduler for time-dependent restaurant operations.
+
+The documented scheduler runs at a 60-second interval and supports:
+
+1. Scheduled order activation.
+2. Reservation-related order processing.
+3. Table status synchronization.
+4. Expired reservation and dining-session handling.
+
+Time-dependent operations use the `Asia/Kolkata` timezone where configured.
+
+For multi-instance production deployments, verify that scheduler locking is distributed across instances. An in-memory lock alone cannot coordinate independent server processes.
 
 ---
 
 ## 🧪 Automated Testing Suite
 
-The backend contains a suite of automated unit and integration tests executing natively via the Node.js test runner (`node:test`).
+The backend uses the native Node.js test runner.
+
+Run the complete test suite:
 
 ```bash
 npm test
 ```
 
-### Verified Test Results
+### Latest Recorded Test Milestone
 
 ```text
-▶ Order Controller - Payment Policy Validation Tests (3 tests)
-▶ Order Controller - Cancellation Safeguard & Reason Handling Tests (3 tests)
-▶ Scheduled Order Service - Phase 1 Integration Tests (16 tests)
-▶ Razorpay Webhook - Phase 2A Core Hardening Tests (12 tests)
-▶ Razorpay Webhook - Deduplication & Concurrency (9 tests)
-▶ Razorpay Webhook - Phase 2A Final Hardening Tests (9 tests)
-▶ Razorpay Webhook - Refund Lifecycle & Reconciliation Hardening (7 tests)
-▶ Razorpay Payment Hardening - Phase 2A Final Implementation Tests (9 tests)
-▶ Razorpay Refund Recovery & Concurrency Hardening (13 tests)
-▶ Edge Cases & Out-of-Order Webhook Resolution (5 tests)
-
-ℹ tests 87
-ℹ suites 10
-ℹ pass 87
-ℹ fail 0
-ℹ duration_ms ~640ms
+Tests:       130 passed
+Suites:       14
+Failures:      0
 ```
+
+The 130-test result represents the latest recorded project milestone. Run `npm test` on the current checkout to verify the present status.
 
 ---
 
-## ☁️ Deployment Guide (Render)
+## ☁️ Deployment Guide — Render
 
-The backend is configured for deployment as a **Web Service** on [Render](https://render.com).
+The backend is deployed as a Render Web Service.
 
-1. **Create Web Service:** Link the GitHub repository `Sourav142005/LUX-Restaurant-Backend`.
-2. **Runtime Environment:** Select **Node**.
-3. **Build & Start Commands:**
-   - **Build Command:** `npm install`
-   - **Start Command:** `npm start`
-4. **Environment Variables:** Set all required variables documented in the [Environment Configuration](#environment-configuration) section.
-5. **Proxy Configuration:** The server includes `app.set("trust proxy", 1)` to handle SSL termination and accurate client IP resolution behind Render's reverse proxy.
-6. **Razorpay Webhook Registration:**
-   - In your Razorpay Dashboard ➔ Settings ➔ Webhooks:
-   - **URL:** `https://lux-restaurant-backend.onrender.com/api/payment/webhook`
-   - **Secret:** Must match your `RAZORPAY_WEBHOOK_SECRET` environment variable.
-   - **Events:** `payment.captured`, `order.paid`, `payment.failed`, `refund.processed`, `refund.failed`.
+### Deployment Steps
 
-Live API Base URL: **[https://lux-restaurant-backend.onrender.com](https://lux-restaurant-backend.onrender.com)**
+1. Open [Render](https://render.com).
+2. Create a new Web Service.
+3. Connect the `LUX-Restaurant-Backend` GitHub repository.
+4. Select the Node.js runtime.
+5. Configure the build command:
+
+```bash
+npm install
+```
+
+6. Configure the start command:
+
+```bash
+npm start
+```
+
+7. Add the required environment variables.
+8. Deploy the service.
+9. Configure the Razorpay webhook URL and secret.
+10. Confirm that the production frontend origin is permitted by the backend CORS configuration.
+
+### Live Deployment
+
+**Backend API:**  
+https://lux-restaurant-backend.onrender.com
+
+**Frontend Application:**  
+https://luxrestaurant.vercel.app/
 
 ---
 
 ## 🔒 Security & Operational Best Practices
 
-- **Zero-Secret Commits:** Configuration is read strictly from `process.env`. No credentials or fallback passwords exist in application controllers.
-- **Cryptographic Signature Verification:** Webhooks use constant-time byte comparisons (`crypto.timingSafeEqual`) on raw body payloads to thwart timing attacks.
-- **Strict Role-Based Isolation:** Non-admin callers attempting to access `/api/admin/*` or modify other users' orders are rejected with HTTP 403 Forbidden.
-- **CORS Protection:** Rejects unauthorized origin headers while dynamically permitting localhost dev environments and production Vercel frontends.
+- Never commit environment files or production credentials.
+- Store secrets using environment variables.
+- Never expose Razorpay secret keys or JWT secrets in frontend code.
+- Validate authentication and authorization on the backend.
+- Verify resource ownership before allowing customer modifications.
+- Validate menu availability and pricing on the server.
+- Verify payment webhook signatures before processing events.
+- Use HTTPS for deployed application traffic.
+- Monitor payment reconciliation flags and failed gateway operations.
 
 ---
 
-## 🌐 Cross-Repository Ecosystem
+## 🌐 LUX Project Ecosystem
 
-| Component | Repository Link | Deployed URL |
-| :--- | :--- | :--- |
-| **Backend REST API** | [Sourav142005/LUX-Restaurant-Backend](https://github.com/Sourav142005/LUX-Restaurant-Backend) | [lux-restaurant-backend.onrender.com](https://lux-restaurant-backend.onrender.com) |
-| **Frontend Web App** | [Sourav142005/LUX-Restaurant-Frontend](https://github.com/Sourav142005/LUX-Restaurant-Frontend) | [luxrestaurant.vercel.app](https://luxrestaurant.vercel.app/) |
+| Component | Repository | Deployment |
+|---|---|---|
+| Backend REST API | [LUX-Restaurant-Backend](https://github.com/Sourav142005/LUX-Restaurant-Backend) | [Render](https://lux-restaurant-backend.onrender.com) |
+| Frontend Web Application | [LUX-Restaurant-Frontend](https://github.com/Sourav142005/LUX-Restaurant-Frontend) | [Vercel](https://luxrestaurant.vercel.app/) |
 
 ---
 
-## 👨‍💻 Author & Acknowledgments
+## 👨‍💻 Author
 
-**Sourav Shridhar Kamble**<br/>
+**Sourav Shridhar Kamble**
+
 - **GitHub:** [@Sourav142005](https://github.com/Sourav142005)
 - **LinkedIn:** [Sourav Kamble](https://www.linkedin.com/in/sourav-kamble)
-- **Email:** [sourav142005@gmail.com](mailto:sourav142005@gmail.com)
 
 ---
 
 <div align="center">
-<sub>Engineered for reliability, financial accuracy, and luxury dining operations. &copy; 2026 LUX Restaurant Platform.</sub>
+
+*Engineered for reliable restaurant operations, secure payment processing, and a refined dining experience.*
+
+**© 2026 LUX Restaurant Platform**
+
 </div>
